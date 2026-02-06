@@ -21,6 +21,14 @@
     "esModuleInterop": true,
     "strict": true,
     "resolveJsonModule": true,
+    
+    // the following lines seem to fix 'minimatch' issue
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
   },
   "include": [
     "./scripts",
