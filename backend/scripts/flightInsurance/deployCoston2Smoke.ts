@@ -19,7 +19,7 @@ async function main() {
     console.log("InsurancePool:", poolAddr);
 
     const InsurancePolicy = await ethers.getContractFactory("InsurancePolicy");
-    const policy = await InsurancePolicy.deploy(tokenAddr, poolAddr);
+    const policy = await InsurancePolicy.deploy(tokenAddr, poolAddr, ethers.ZeroAddress);
     await policy.waitForDeployment();
     const policyAddr = await policy.getAddress();
     console.log("InsurancePolicy:", policyAddr);

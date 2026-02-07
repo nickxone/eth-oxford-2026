@@ -94,6 +94,14 @@ contract InsurancePool {
         return (shareAmount * poolBalance) / totalShares;
     }
 
+    function sharesOf(address lp) external view returns (uint256) {
+        return shares[lp];
+    }
+
+    function totalSharesSupply() external view returns (uint256) {
+        return totalShares;
+    }
+
     function lockCoverage(uint256 policyId, uint256 amount) external onlyPolicy {
         require(amount > 0, "Amount required");
         require(lockedCoverage[policyId] == 0, "Coverage already locked");

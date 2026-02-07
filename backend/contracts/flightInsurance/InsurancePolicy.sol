@@ -6,6 +6,10 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IWeb2Json } from "@flarenetwork/flare-periphery-contracts/coston2/IWeb2Json.sol";
 import { ContractRegistry } from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
 
+interface IFdcVerifier {
+    function verifyWeb2Json(IWeb2Json.Proof calldata proof) external view returns (bool);
+}
+
 interface IInsurancePool {
     function lockCoverage(uint256 policyId, uint256 amount) external;
     function releaseCoverage(uint256 policyId) external;
@@ -43,6 +47,8 @@ contract InsurancePolicy {
 
     IERC20 public immutable usdc;
     IInsurancePool public immutable pool;
+    address public immutable fdcVerifier;
+    bool public immutable useCustomVerifier;
 
     Policy[] public registeredPolicies;
 
@@ -52,11 +58,15 @@ contract InsurancePolicy {
     event PolicyExpired(uint256 indexed id);
     event PolicyRetired(uint256 indexed id);
 
-    constructor(address usdcAddress, address poolAddress) {
+    constructor(address usdcAddress, address poolAddress, address customFdcVerifier) {
         require(usdcAddress != address(0), "USDC address required");
         require(poolAddress != address(0), "Pool address required");
         usdc = IERC20(usdcAddress);
         pool = IInsurancePool(poolAddress);
+        if (customFdcVerifier != address(0)) {
+            fdcVerifier = customFdcVerifier;
+            useCustomVerifier = true;
+        }
     }
 
     function createPolicy(
@@ -179,6 +189,9 @@ contract InsurancePolicy {
     function abiSignatureHack(FlightDelayDTO memory dto) public pure {}
 
     function isWeb2JsonProofValid(IWeb2Json.Proof calldata _proof) private view returns (bool) {
+        if (useCustomVerifier) {
+            return IFdcVerifier(fdcVerifier).verifyWeb2Json(_proof);
+        }
         return ContractRegistry.getFdcVerification().verifyWeb2Json(_proof);
     }
 }

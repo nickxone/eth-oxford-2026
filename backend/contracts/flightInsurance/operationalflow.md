@@ -54,3 +54,6 @@ This document describes how `InsurancePolicy` and `InsurancePool` interact for t
   - `acceptPolicy` locks coverage
   - `verifyXRPLPayment` validates XRPL tx
   - `collectPremium` transfers USDC premium to pool
+
+## Testing Note (FDC Down)
+`InsurancePolicy` supports an optional custom FDC verifier address in the constructor. If provided, it will be used instead of the on-chain FDC registry. This allows mocking `verifyWeb2Json` during tests without altering production logic.

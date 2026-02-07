@@ -14,6 +14,7 @@ This folder contains the USDC‑based flight‑delay insurance contracts for the
   - `resolvePolicy(id, proof)` verifies an FDC Web2Json proof and pays out coverage if delay criteria are met.
   - `expirePolicy(id)` releases coverage if the policy expired without a valid claim.
 - **FDC usage:** The API is only queried when `resolvePolicy` is called (i.e., during a claim attempt).
+- **Testing hook:** The constructor accepts an optional custom FDC verifier address. If set, it will be used instead of the on-chain FDC registry. This is intended for local/testing only.
 
 ### `InsurancePool`
 - **Role:** Holds USDC liquidity and pays claims.
