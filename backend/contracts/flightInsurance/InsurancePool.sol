@@ -87,6 +87,21 @@ contract InsurancePool {
         emit SharesBurned(msg.sender, shareAmount);
     }
 
+    function withdrawAmount(uint256 amount) external {
+        require(amount > 0, "Amount required");
+        uint256 poolBalance = fxrp.balanceOf(address(this));
+        require(totalShares > 0 && poolBalance > 0, "No liquidity");
+        require(availableLiquidity() >= amount, "Insufficient available liquidity");
+        uint256 requiredShares = (amount * totalShares + poolBalance - 1) / poolBalance;
+        require(requiredShares > 0, "Withdraw too small");
+        require(shares[msg.sender] >= requiredShares, "Insufficient shares");
+        shares[msg.sender] -= requiredShares;
+        totalShares -= requiredShares;
+        fxrp.safeTransfer(msg.sender, amount);
+        emit Withdrawn(msg.sender, amount);
+        emit SharesBurned(msg.sender, requiredShares);
+    }
+
     function sharesToAmount(uint256 shareAmount) external view returns (uint256) {
         if (shareAmount == 0 || totalShares == 0) {
             return 0;
