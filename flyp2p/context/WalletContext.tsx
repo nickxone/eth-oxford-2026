@@ -91,7 +91,7 @@ export function WalletProvider({ children }: {children: ReactNode}) {
             // Ensure we are on Coston2 on load
             const provider = new ethers.BrowserProvider(window.ethereum);
             provider.getNetwork().then((network) => {
-                if (network.chainId !== 114n) {
+                if (network.chainId !== BigInt(114)) {
                     switchToCoston2().catch(() => undefined);
                 }
             });

@@ -77,13 +77,13 @@ export async function readPoolContracts(address?: string): Promise<PoolReadout> 
     pool.availableLiquidity(),
     pool.totalLocked(),
     pool.totalSharesSupply(),
-    address ? fxrp.balanceOf(address) : Promise.resolve(0n),
-    address ? fxrp.allowance(address, POOL_ADDRESS) : Promise.resolve(0n),
-    address ? pool.sharesOf(address) : Promise.resolve(0n),
+    address ? fxrp.balanceOf(address) : Promise.resolve(BigInt(0)),
+    address ? fxrp.allowance(address, POOL_ADDRESS) : Promise.resolve(BigInt(0)),
+    address ? pool.sharesOf(address) : Promise.resolve(BigInt(0)),
   ]);
 
   const format = (value: bigint) => ethers.formatUnits(value, Number(decimals));
-  const sharesAmount = address ? await pool.sharesToAmount(sharesOf) : 0n;
+  const sharesAmount = address ? await pool.sharesToAmount(sharesOf) : BigInt(0);
 
   return {
     rpcChainId: network.chainId.toString(),
