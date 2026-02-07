@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-const usdc = (value: string) => ethers.parseUnits(value, 6);
+const fxrp = (value: string) => ethers.parseUnits(value, 6);
 
 const abiCoder = ethers.AbiCoder.defaultAbiCoder();
 
@@ -48,7 +48,7 @@ describe("InsurancePolicy + InsurancePool", function () {
         const [owner, lp, holder] = await ethers.getSigners();
 
         const TestERC20 = await ethers.getContractFactory("TestERC20");
-        const token = await TestERC20.deploy("USD Coin", "USDC", 6, usdc("1000000"));
+        const token = await TestERC20.deploy("FXRP", "FXRP", 6, fxrp("1000000"));
 
         const MockFdcVerifier = await ethers.getContractFactory("MockFdcVerifier");
         const verifier = await MockFdcVerifier.deploy();
@@ -65,8 +65,8 @@ describe("InsurancePolicy + InsurancePool", function () {
 
         await pool.setPolicyContract(await policy.getAddress());
 
-        await token.mint(lp.address, usdc("2000"));
-        await token.mint(holder.address, usdc("2000"));
+        await token.mint(lp.address, fxrp("2000"));
+        await token.mint(holder.address, fxrp("2000"));
 
         return { owner, lp, holder, token, pool, policy, verifier };
     }
@@ -74,14 +74,14 @@ describe("InsurancePolicy + InsurancePool", function () {
     it("accepts policy, transfers premium, and locks coverage", async function () {
         const { lp, holder, token, pool, policy } = await deployAll();
 
-        await token.connect(lp).approve(await pool.getAddress(), usdc("1000"));
-        await pool.connect(lp).deposit(usdc("1000"));
+        await token.connect(lp).approve(await pool.getAddress(), fxrp("1000"));
+        await pool.connect(lp).deposit(fxrp("1000"));
 
         const now = BigInt(await time.latest());
         const startTs = now + 600n;
         const endTs = startTs + 3600n;
-        const premium = usdc("10");
-        const coverage = usdc("200");
+        const premium = fxrp("10");
+        const coverage = fxrp("200");
 
         await policy
             .connect(holder)
@@ -91,20 +91,20 @@ describe("InsurancePolicy + InsurancePool", function () {
         await policy.acceptPolicy(0);
 
         expect(await pool.lockedCoverage(0)).to.equal(coverage);
-        expect(await token.balanceOf(await pool.getAddress())).to.equal(usdc("1010"));
+        expect(await token.balanceOf(await pool.getAddress())).to.equal(fxrp("1010"));
     });
 
     it("pays out on valid proof", async function () {
         const { lp, holder, token, pool, policy } = await deployAll();
 
-        await token.connect(lp).approve(await pool.getAddress(), usdc("1000"));
-        await pool.connect(lp).deposit(usdc("1000"));
+        await token.connect(lp).approve(await pool.getAddress(), fxrp("1000"));
+        await pool.connect(lp).deposit(fxrp("1000"));
 
         const now = BigInt(await time.latest());
         const startTs = now + 10n;
         const endTs = startTs + 3600n;
-        const premium = usdc("10");
-        const coverage = usdc("200");
+        const premium = fxrp("10");
+        const coverage = fxrp("200");
 
         await policy
             .connect(holder)
@@ -136,14 +136,14 @@ describe("InsurancePolicy + InsurancePool", function () {
     it("expires policy and releases coverage", async function () {
         const { lp, holder, token, pool, policy } = await deployAll();
 
-        await token.connect(lp).approve(await pool.getAddress(), usdc("1000"));
-        await pool.connect(lp).deposit(usdc("1000"));
+        await token.connect(lp).approve(await pool.getAddress(), fxrp("1000"));
+        await pool.connect(lp).deposit(fxrp("1000"));
 
         const now = BigInt(await time.latest());
         const startTs = now + 10n;
         const endTs = startTs + 60n;
-        const premium = usdc("10");
-        const coverage = usdc("200");
+        const premium = fxrp("10");
+        const coverage = fxrp("200");
 
         await policy
             .connect(holder)

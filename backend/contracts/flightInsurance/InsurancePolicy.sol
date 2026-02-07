@@ -45,7 +45,7 @@ contract InsurancePolicy {
         uint256 id;
     }
 
-    IERC20 public immutable usdc;
+    IERC20 public immutable fxrp;
     IInsurancePool public immutable pool;
     address public immutable fdcVerifier;
     bool public immutable useCustomVerifier;
@@ -58,10 +58,10 @@ contract InsurancePolicy {
     event PolicyExpired(uint256 indexed id);
     event PolicyRetired(uint256 indexed id);
 
-    constructor(address usdcAddress, address poolAddress, address customFdcVerifier) {
-        require(usdcAddress != address(0), "USDC address required");
+    constructor(address fxrpAddress, address poolAddress, address customFdcVerifier) {
+        require(fxrpAddress != address(0), "FXRP address required");
         require(poolAddress != address(0), "Pool address required");
-        usdc = IERC20(usdcAddress);
+        fxrp = IERC20(fxrpAddress);
         pool = IInsurancePool(poolAddress);
         if (customFdcVerifier != address(0)) {
             fdcVerifier = customFdcVerifier;
@@ -108,8 +108,8 @@ contract InsurancePolicy {
 
         pool.lockCoverage(id, policy.coverage);
 
-        bool ok = usdc.transferFrom(policy.holder, address(pool), policy.premium);
-        require(ok, "USDC transfer failed");
+        bool ok = fxrp.transferFrom(policy.holder, address(pool), policy.premium);
+        require(ok, "FXRP transfer failed");
 
         policy.status = PolicyStatus.Active;
         registeredPolicies[id] = policy;

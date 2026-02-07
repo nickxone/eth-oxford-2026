@@ -5,7 +5,7 @@ This folder contains tests for the flight‑insurance contracts.
 ## `InsurancePool.test.ts`
 Covers the liquidity pool share accounting and withdrawal limits:
 - **Share minting**: first deposit is 1:1 shares, later deposits are pro‑rata.
-- **Withdrawals**: burning shares returns the correct USDC amount.
+- **Withdrawals**: burning shares returns the correct FXRP amount.
 - **Locked coverage**: withdrawals are blocked when coverage is locked.
 - **Share valuation**: `sharesToAmount` matches pool balance.
 

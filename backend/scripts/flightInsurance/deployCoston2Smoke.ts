@@ -1,16 +1,16 @@
 import { ethers } from "hardhat";
 
-const usdc = (value: string) => ethers.parseUnits(value, 6);
+const fxrp = (value: string) => ethers.parseUnits(value, 6);
 
 async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("Deployer:", deployer.address);
 
     const TestERC20 = await ethers.getContractFactory("TestERC20");
-    const token = await TestERC20.deploy("USD Coin", "USDC", 6, usdc("1000000"));
+    const token = await TestERC20.deploy("FXRP", "FXRP", 6, fxrp("1000000"));
     await token.waitForDeployment();
     const tokenAddr = await token.getAddress();
-    console.log("Mock USDC:", tokenAddr);
+    console.log("Mock FXRP:", tokenAddr);
 
     const InsurancePool = await ethers.getContractFactory("InsurancePool");
     const pool = await InsurancePool.deploy(tokenAddr);
@@ -29,7 +29,7 @@ async function main() {
     console.log("Policy contract set");
 
     // Fund pool liquidity
-    const depositAmount = usdc("1000");
+    const depositAmount = fxrp("1000");
     await (await token.approve(poolAddr, depositAmount)).wait();
     await (await pool.deposit(depositAmount)).wait();
     console.log("Deposited liquidity:", depositAmount.toString());
@@ -38,8 +38,8 @@ async function main() {
     const now = Math.floor(Date.now() / 1000);
     const startTs = now + 60;
     const endTs = now + 3600;
-    const premium = usdc("10");
-    const coverage = usdc("200");
+    const premium = fxrp("10");
+    const coverage = fxrp("200");
 
     const createTx = await policy.createPolicy(
         "AA1234-2026-02-10",
