@@ -39,7 +39,9 @@ export default function Home() {
               <Link href="/buy">
                 <Button className="rounded-full cursor-pointer">Launch Coverage</Button>
               </Link>
-              <Button variant="outline" className="rounded-full cursor-pointer">View Protocol Deck</Button>
+              <Link href="/pool">
+                <Button variant="outline" className="rounded-full cursor-pointer">Invest in FlyP2P</Button>
+              </Link>
             </div>
           </div>
 

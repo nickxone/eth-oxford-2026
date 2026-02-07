@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import { Navbar } from "@/components/ui/navbar";
+import { Footer } from "@/components/ui/footer";
 import Link from "next/link";
 
 
@@ -47,6 +48,7 @@ export default function RootLayout({
               </div>
             </header>
             {children}
+            <Footer />
           </div>
         </Providers>
       </body>
