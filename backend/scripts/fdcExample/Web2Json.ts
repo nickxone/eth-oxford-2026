@@ -13,8 +13,6 @@ const { VERIFIER_URL_TESTNET, VERIFIER_API_KEY_TESTNET, COSTON2_DA_LAYER_URL } =
 // yarn hardhat run scripts/fdcExample/Web2Json.ts --network coston2
 
 // Request data
-// const apiUrl = "https://swapi.dev/api/people/3/";
-// const postProcessJq = `{name: .name, height: .height, mass: .mass, numberOfFilms: .films | length, uid: (.url | split("/") | .[-2] | tonumber)}`;
 const apiUrl = "https://swapi.info/api/people/3";
 const postProcessJq = `{name: .name, height: .height, mass: .mass, numberOfFilms: .films | length, uid: (.url | split("/") | .[-1]) *1}`;
 const httpMethod = "GET";
@@ -43,7 +41,12 @@ async function prepareAttestationRequest(apiUrl: string, postProcessJq: string, 
     const url = `${verifierUrlBase}/verifier/web2/Web2Json/prepareRequest`;
     const apiKey = VERIFIER_API_KEY_TESTNET;
 
-    return await prepareAttestationRequestBase(url, apiKey, attestationTypeBase, sourceIdBase, requestBody);
+    const response = await prepareAttestationRequestBase(url, apiKey, attestationTypeBase, sourceIdBase, requestBody);
+
+    if (!response.abiEncodedRequest) {
+        console.error("Verifier Error Response:", JSON.stringify(response, null, 2))
+    }
+    return response
 }
 
 async function retrieveDataAndProof(abiEncodedRequest: string, roundId: number) {
