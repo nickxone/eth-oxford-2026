@@ -67,32 +67,27 @@ async function main() {
     console.log("Locked coverage:", locked.toString());
 
     // Withdraw test is optional because FXRP may restrict transfers from contracts.
-    const RUN_WITHDRAW = process.env.RUN_WITHDRAW === "true";
-    if (RUN_WITHDRAW) {
-        const shares = await pool.sharesOf(deployer.address);
-        const withdrawShares = shares / 100n; // 1% of shares
-        if (withdrawShares > 0n) {
-            const amount = await pool.sharesToAmount(withdrawShares);
-            const available = await pool.availableLiquidity();
-            if (amount <= available) {
-                try {
-                    await pool.withdraw.staticCall(withdrawShares);
-                    await (await pool.withdraw(withdrawShares)).wait();
-                    console.log("Withdrew shares:", withdrawShares.toString());
-                } catch (err) {
-                    console.log("Skip withdraw: withdrawal reverted", err);
-                }
-            } else {
-                console.log(
-                    "Skip withdraw: available liquidity too low",
-                    { amount: amount.toString(), available: available.toString() }
-                );
+    const shares = await pool.sharesOf(deployer.address);
+    const withdrawShares = shares / 100n; // 1% of shares
+    if (withdrawShares > 0n) {
+        const amount = await pool.sharesToAmount(withdrawShares);
+        const available = await pool.availableLiquidity();
+        if (amount <= available) {
+            try {
+                await pool.withdraw.staticCall(withdrawShares);
+                await (await pool.withdraw(withdrawShares, {gasLimit: 10000000})).wait();
+                console.log("Withdrew shares:", withdrawShares.toString());
+            } catch (err) {
+                console.log("Skip withdraw: withdrawal reverted", err);
             }
         } else {
-            console.log("Skip withdraw: no shares minted");
+            console.log(
+                "Skip withdraw: available liquidity too low",
+                { amount: amount.toString(), available: available.toString() }
+            );
         }
     } else {
-        console.log("Skip withdraw: RUN_WITHDRAW not enabled");
+        console.log("Skip withdraw: no shares minted");
     }
 }
 
