@@ -10,17 +10,54 @@ declare global { interface Window { ethereum?: any; } }
 interface WalletContextType {
     address: string | undefined;
     connectWallet: () => Promise<void>; 
+    switchToCoston2: () => Promise<void>;
     isConnected: boolean;
     isConnecting: boolean;
     error: string | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
+
+const COSTON2 = {
+    chainId: "0x72", // 114
+    chainName: "Flare Coston2",
+    rpcUrls: ["https://coston2-api.flare.network/ext/C/rpc"],
+    nativeCurrency: {
+        name: "Coston2 Flare",
+        symbol: "C2FLR",
+        decimals: 18,
+    },
+    blockExplorerUrls: ["https://coston2-explorer.flare.network"],
+};
     
 export function WalletProvider({ children }: {children: ReactNode}) {
     const [address, setAddress] = useState<string | undefined>(undefined);
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const switchToCoston2 = async () => {
+        if (!window.ethereum) {
+            setError("Install MetaMask");
+            return;
+        }
+        try {
+            await window.ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: COSTON2.chainId }],
+            });
+        } catch (err: any) {
+            if (err?.code === 4902) {
+                await window.ethereum.request({
+                    method: "wallet_addEthereumChain",
+                    params: [COSTON2],
+                });
+            } else {
+                const message = err?.message ?? "Failed to switch network";
+                setError(message);
+                throw err;
+            }
+        }
+    };
 
     const connectWallet = async () => {
         if (isConnecting) return;
@@ -31,6 +68,7 @@ export function WalletProvider({ children }: {children: ReactNode}) {
         setIsConnecting(true);
         setError(null);
         try {
+            await switchToCoston2();
             const provider = new ethers.BrowserProvider(window.ethereum);
             const accounts = await provider.send("eth_requestAccounts", []);
             setAddress(accounts[0]);
@@ -50,15 +88,29 @@ export function WalletProvider({ children }: {children: ReactNode}) {
                     if (accounts.length > 0) setAddress(accounts[0]);
                 });
 
+            // Ensure we are on Coston2 on load
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            provider.getNetwork().then((network) => {
+                if (network.chainId !== 114n) {
+                    switchToCoston2().catch(() => undefined);
+                }
+            });
+
             // Add binding to handle event change
             window.ethereum.on("accountsChanged", (accs: string[]) => {
                 setAddress(accs.length > 0 ? accs[0] : undefined);
-            })
+            });
+
+            window.ethereum.on("chainChanged", (chainId: string) => {
+                if (chainId !== COSTON2.chainId) {
+                    switchToCoston2().catch(() => undefined);
+                }
+            });
         }
     }, []);
     
     return (
-        <WalletContext.Provider value={{ address, connectWallet, isConnected: !!address, isConnecting, error }}>
+        <WalletContext.Provider value={{ address, connectWallet, switchToCoston2, isConnected: !!address, isConnecting, error }}>
             {children}
         </WalletContext.Provider>
     );

@@ -1,9 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Orbitron, Space_Grotesk } from "next/font/google";
 import { useWallet } from "@/context/WalletContext";
-import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react";
+import {
+  readAvailableStakeOf,
+  readFxrpBalance,
+  readPoolContracts,
+} from "@/lib/helpers/pool";
+import { readAllPolicies, PolicyReadout } from "@/lib/helpers/policy"; //
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { ActiveRiskTable } from "@/components/pool/active-risk-table";
 import { ManageLiquidityTabs } from "@/components/pool/manage-liquidity-tabs";
 import { PageBanner } from "@/components/ui/page-banner";
@@ -31,74 +35,89 @@ const orbitron = Orbitron({
   weight: ["400", "600"],
 });
 
-type RiskItem = {
-  flight: string;
-  departure: string;
-  locked: string;
-  status: "Active" | "Resolving";
-};
-
 const cardBase = "border-0 bg-[#eef1f6]/60 shadow-md";
 
 export default function PoolPage() {
   const { address, isConnected, connectWallet, isConnecting } = useWallet();
+  const [walletFxrpBalance, setWalletFxrpBalance] = useState<string>("0.0");
+  const [allPolicies, setAllPolicies] = useState<PolicyReadout[]>([]); //
+  const [availableStake, setAvailableStake] = useState<string>("0.0");
+  const [poolReadout, setPoolReadout] = useState<{
+    poolAvailable: string;
+    poolTotalLocked: string;
+    poolTotalShares: string;
+    fxrpSymbol: string;
+    walletPoolLiquidity?: string;
+  } | null>(null);
 
-  const stats = useMemo(
-    () => [
+  // Filter policies that are currently "Active"
+  const activePolicies = useMemo(() => 
+    allPolicies.filter(p => p.status === "Active"), 
+    [allPolicies]
+  ); //
+
+  const stats = useMemo(() => {
+    const symbol = "FXRP";
+    return [
       {
-        label: "Total Value Locked",
-        value: "$10,000 USDC",
-        trend: "+8.2%",
-        direction: "up" as const,
-        footer: "TVL growing month over month",
+        label: "Pool Available",
+        value: poolReadout ? `${poolReadout.poolAvailable} ${symbol}` : "--",
+        footer: "Available liquidity on-chain",
       },
       {
-        label: "Active Policies",
-        value: "12 Active Policies",
-        trend: "+3",
-        direction: "up" as const,
-        footer: "New flights underwritten today",
+        label: "Total Locked",
+        value: poolReadout ? `${poolReadout.poolTotalLocked} ${symbol}` : "--",
+        footer: "Locked for active coverage",
       },
       {
-        label: "APY",
-        value: "5%",
-        trend: "-0.4%",
-        direction: "down" as const,
-        footer: "Premiums softer this week",
+        label: "Total Shares",
+        value: poolReadout ? `${poolReadout.poolTotalShares} ${symbol}` : "--",
+        footer: "Total pool shares minted",
       },
       {
         label: "My Liquidity",
-        value: "500 USDC",
-        trend: "+50 USDC",
-        direction: "up" as const,
-        footer: "Deposits added this cycle",
+        value: poolReadout?.walletPoolLiquidity
+          ? `${poolReadout.walletPoolLiquidity} ${symbol}`
+          : "--",
+        footer: "Your FXRP deposited in pool",
       },
       {
-        label: "Pool Share",
-        value: "5% Share",
-        trend: "+0.3%",
-        direction: "up" as const,
-        footer: "Ownership increased",
+        label: "Active Policies",
+        value: `${activePolicies.length} Active`, // Dynamic count
+        footer: "Current flights underwritten",
       },
       {
         label: "Earnings",
-        value: "+$25 Earned",
-        trend: "+$3",
-        direction: "up" as const,
-        footer: "Premiums accrued to date",
+        value: `${availableStake} ${symbol}`,
+        footer: "Available to withdraw",
       },
-    ],
-    []
-  );
+    ];
+  }, [poolReadout, walletFxrpBalance, activePolicies, availableStake]);
 
-  const risks = useMemo<RiskItem[]>(
-    () => [
-      { flight: "BA123", departure: "Feb 10, 14:00", locked: "$200", status: "Active" },
-      { flight: "EK002", departure: "Feb 12, 09:15", locked: "$150", status: "Active" },
-      { flight: "SQ318", departure: "Feb 13, 21:40", locked: "$120", status: "Resolving" },
-    ],
-    []
-  );
+  // Map contract policies to the RiskTable format
+  const riskTableData = useMemo(() => 
+    activePolicies.map(p => ({
+      flight: p.flightRef,
+      departure: new Date(p.startTimestamp * 1000).toLocaleString(), // Format timestamp
+      locked: `${p.coverage} FXRP`,
+      status: "Active" as const
+    })), 
+    [activePolicies, poolReadout]
+  ); //
+
+  // Effect to fetch all policies
+  useEffect(() => {
+    let cancelled = false;
+    readAllPolicies() //
+      .then((policies) => {
+        if (!cancelled) setAllPolicies(policies);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch policies:", err);
+        if (!cancelled) setAllPolicies([]);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const lockedFunds = 200;
 
@@ -107,12 +126,74 @@ export default function PoolPage() {
     return `${value.slice(0, 6)}...${value.slice(-4)}`;
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!address) {
+      setWalletFxrpBalance("0.0");
+      return () => {
+        cancelled = true;
+      };
+    }
+    readFxrpBalance(address)
+      .then((balance) => {
+        if (!cancelled) setWalletFxrpBalance(balance);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletFxrpBalance("0.0");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!address) {
+      setAvailableStake("0.0");
+      return () => {
+        cancelled = true;
+      };
+    }
+    readAvailableStakeOf(address)
+      .then((value) => {
+        if (!cancelled) setAvailableStake(value);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableStake("0.0");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
+
+  useEffect(() => {
+    let cancelled = false;
+    readPoolContracts(address)
+      .then((data) => {
+        if (!cancelled) {
+          setPoolReadout({
+            poolAvailable: data.poolAvailable,
+            poolTotalLocked: data.poolTotalLocked,
+            poolTotalShares: data.poolTotalShares,
+            fxrpSymbol: data.fxrpSymbol,
+            walletPoolLiquidity: data.walletPoolLiquidity,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPoolReadout(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
+
   return (
     <div
       className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen overflow-x-hidden text-[#0c1018]`}
     >
       <main className="relative mx-auto flex w-full flex-col gap-8 px-6 pb-24 sm:px-12">
-        <PageBanner image="/buy_page_banner.jpg" />
+        <PageBanner image="/pool_page_banner.jpg" />
         <section className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-3">
             <Badge className="bg-orange-50 text-orange-700">Liquidity Pool</Badge>
@@ -154,24 +235,11 @@ export default function PoolPage() {
                 <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
                   {stat.value}
                 </CardTitle>
-                <CardAction>
-                  <Badge variant="outline">
-                    {stat.direction === "up" ? <IconTrendingUp /> : <IconTrendingDown />}
-                    {stat.trend}
-                  </Badge>
-                </CardAction>
+                <CardAction />
               </CardHeader>
               <CardFooter className="flex-col items-start gap-1.5 text-sm text-[#3f4a59]">
                 <div className="line-clamp-1 flex gap-2 font-medium text-[#0c1018]">
                   {stat.footer}
-                  {stat.direction === "up" ? (
-                    <IconTrendingUp className="size-4" />
-                  ) : (
-                    <IconTrendingDown className="size-4" />
-                  )}
-                </div>
-                <div className="text-xs text-[#6b7482]">
-                  Updated moments ago
                 </div>
               </CardFooter>
             </Card>
@@ -185,7 +253,11 @@ export default function PoolPage() {
               <CardDescription>Deposit or withdraw from the pool.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ManageLiquidityTabs lockedFunds={lockedFunds} walletBalance={1000} />
+              <ManageLiquidityTabs
+                lockedFunds={lockedFunds}
+                walletBalance={walletFxrpBalance}
+                poolBalance={poolReadout?.walletPoolLiquidity ?? "0.0"}
+              />
             </CardContent>
             <CardFooter className="text-xs text-[#6b7482]">
               Transactions settle on-chain after Flare confirmation.
@@ -198,7 +270,7 @@ export default function PoolPage() {
               <CardDescription>Underwritten flights using your capital.</CardDescription>
             </CardHeader>
             <CardContent>
-              <ActiveRiskTable data={risks} />
+              <ActiveRiskTable data={riskTableData} />
             </CardContent>
           </Card>
         </section>
