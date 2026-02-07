@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageBanner } from "@/components/ui/page-banner";
 
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -41,9 +42,11 @@ const Step1Schema = z.object({
 
 const Step2Schema = z.object({
   // you can add user-selectable coverage fields later (tier, coverage amount, etc.)
-  acceptedQuote: z.literal(true, {
-    errorMap: () => ({ message: "Please accept the quote to continue." }),
-  }),
+  acceptedQuote: z
+    .boolean()
+    .refine((value) => value, {
+      message: "Please accept the quote to continue.",
+    }),
 });
 
 const Step3Schema = z.object({
@@ -74,17 +77,8 @@ export default function BuyPage() {
     []
   );
 
-  // Per-step resolver (only validates current step)
-  const stepResolver = useMemo(() => {
-    if (currentStep === 1) return zodResolver(Step1Schema);
-    if (currentStep === 2) return zodResolver(Step2Schema);
-    if (currentStep === 3) return zodResolver(Step3Schema);
-    // step 4 is display-only
-    return zodResolver(FullSchema);
-  }, [currentStep]);
-
   const form = useForm<FormValues>({
-    resolver: stepResolver,
+    resolver: zodResolver(FullSchema),
     mode: "onTouched",
     defaultValues: {
       flightNumber: "BA123",
@@ -176,7 +170,10 @@ export default function BuyPage() {
         <div className="absolute bottom-[-20%] right-[-10%] h-[36rem] w-[36rem] rounded-full bg-[radial-gradient(circle,_rgba(177,144,255,0.18),_rgba(247,247,251,0)_60%)] blur-3xl" />
       </div>
 
-      <main className="relative mx-auto flex w-full flex-col gap-10 px-6 pb-24 pt-6 sm:px-12">
+      <main className="relative mx-auto flex w-full flex-col gap-10 px-6 pb-24 sm:px-12">
+        <PageBanner
+          image="/buy_page_banner.jpg"
+        />
         <section className="grid gap-6">
           <div className="flex flex-col gap-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">

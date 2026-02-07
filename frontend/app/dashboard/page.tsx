@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "lucide-react";
+import { PageBanner } from "@/components/ui/page-banner";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -149,9 +150,10 @@ export default function DashboardPage() {
       className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen text-[#0c1018]`}
     >
       <main className="relative mx-auto flex w-full flex-col gap-8 px-6 pb-24 sm:px-12">
+        <PageBanner image="/buy_page_banner.jpg" />
         <section className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-3">
-            <Badge className="w-fit bg-[#101826] text-white">Claims Dashboard</Badge>
+            <Badge className="w-fit bg-indigo-50 text-indigo-700">Claims Dashboard</Badge>
             <h1 className="font-[var(--font-orbitron)] text-3xl sm:text-4xl">
               My Policies
             </h1>
@@ -159,7 +161,7 @@ export default function DashboardPage() {
               Track your flight status and claim instant payouts.
             </p>
           </div>
-
+  
           <div className="flex items-center gap-3 rounded-2xl px-4 py-3">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">Wallet</p>
