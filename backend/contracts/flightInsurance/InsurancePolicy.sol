@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IWeb2Json } from "@flarenetwork/flare-periphery-contracts/coston2/IWeb2Json.sol";
 import { ContractRegistry } from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
@@ -25,6 +26,8 @@ struct FlightDelayDTO {
 }
 
 contract InsurancePolicy {
+    using SafeERC20 for IERC20;
+
     enum PolicyStatus {
         Unclaimed,
         Active,
@@ -45,7 +48,7 @@ contract InsurancePolicy {
         uint256 id;
     }
 
-    IERC20 public immutable usdc;
+    IERC20 public immutable fxrp;
     IInsurancePool public immutable pool;
     address public immutable fdcVerifier;
     bool public immutable useCustomVerifier;
@@ -58,10 +61,10 @@ contract InsurancePolicy {
     event PolicyExpired(uint256 indexed id);
     event PolicyRetired(uint256 indexed id);
 
-    constructor(address usdcAddress, address poolAddress, address customFdcVerifier) {
-        require(usdcAddress != address(0), "USDC address required");
+    constructor(address fxrpAddress, address poolAddress, address customFdcVerifier) {
+        require(fxrpAddress != address(0), "FXRP address required");
         require(poolAddress != address(0), "Pool address required");
-        usdc = IERC20(usdcAddress);
+        fxrp = IERC20(fxrpAddress);
         pool = IInsurancePool(poolAddress);
         if (customFdcVerifier != address(0)) {
             fdcVerifier = customFdcVerifier;
@@ -107,9 +110,7 @@ contract InsurancePolicy {
         }
 
         pool.lockCoverage(id, policy.coverage);
-
-        bool ok = usdc.transferFrom(policy.holder, address(pool), policy.premium);
-        require(ok, "USDC transfer failed");
+        fxrp.safeTransferFrom(policy.holder, address(pool), policy.premium);
 
         policy.status = PolicyStatus.Active;
         registeredPolicies[id] = policy;
