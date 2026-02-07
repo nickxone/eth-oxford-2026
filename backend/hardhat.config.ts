@@ -69,14 +69,14 @@ const config: HardhatUserConfig = {
             url: FLARE_RPC_API_KEY
                 ? `https://coston-api-tracer.flare.network/ext/C/rpc?x-apikey=${FLARE_RPC_API_KEY}`
                 : "https://coston-api.flare.network/ext/C/rpc",
-            accounts: [process.env.PRIVATE_KEY_A!, process.env.PRIVATE_KEY_B!, `${PRIVATE_KEY}`],
+            accounts: [`${PRIVATE_KEY}`],
             chainId: 16,
         },
         coston2: {
             url: FLARE_RPC_API_KEY
                 ? `https://coston2-api-tracer.flare.network/ext/C/rpc?x-apikey=${FLARE_RPC_API_KEY}`
                 : "https://coston2-api.flare.network/ext/C/rpc",
-            accounts: [process.env.PRIVATE_KEY_A!, process.env.PRIVATE_KEY_B!, `${PRIVATE_KEY}`],
+            accounts: [`${PRIVATE_KEY}`],
             chainId: 114,
         },
         songbird: {

@@ -2,8 +2,14 @@
 pragma solidity ^0.8.25;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract InsurancePool {
+<<<<<<< HEAD
+    using SafeERC20 for IERC20;
+
+=======
+>>>>>>> main
     IERC20 public immutable fxrp;
     address public owner;
     address public policyContract;
@@ -63,8 +69,12 @@ contract InsurancePool {
             mintedShares = (amount * totalShares) / poolBalance;
             require(mintedShares > 0, "Deposit too small");
         }
+<<<<<<< HEAD
+        fxrp.safeTransferFrom(msg.sender, address(this), amount);
+=======
         bool ok = fxrp.transferFrom(msg.sender, address(this), amount);
         require(ok, "FXRP transfer failed");
+>>>>>>> main
         shares[msg.sender] += mintedShares;
         totalShares += mintedShares;
         emit Deposited(msg.sender, amount);
@@ -80,8 +90,12 @@ contract InsurancePool {
         require(availableLiquidity() >= amount, "Insufficient available liquidity");
         shares[msg.sender] -= shareAmount;
         totalShares -= shareAmount;
+<<<<<<< HEAD
+        fxrp.safeTransfer(msg.sender, amount);
+=======
         bool ok = fxrp.transfer(msg.sender, amount);
         require(ok, "FXRP transfer failed");
+>>>>>>> main
         emit Withdrawn(msg.sender, amount);
         emit SharesBurned(msg.sender, shareAmount);
     }
@@ -100,6 +114,38 @@ contract InsurancePool {
 
     function totalSharesSupply() external view returns (uint256) {
         return totalShares;
+    }
+
+    function availableStake() external view returns (uint256) {
+        if (fxrp.balanceOf(address(this)) == 0 || totalShares == 0) {
+            return 0;
+        }
+        return availableLiquidity() / fxrp.balanceOf(address(this)) * totalShares;
+    }
+
+    function availableStakeOf(address lp) external view returns (uint256) {
+        uint256 shareAmount = shares[lp];
+        if (shareAmount == 0 || totalShares == 0) {
+            return 0;
+        }
+        uint256 poolBalance = fxrp.balanceOf(address(this));
+        uint256 amount = (shareAmount * poolBalance) / totalShares;
+        uint256 available = availableLiquidity();
+        return amount <= available ? amount : available;
+    }
+
+    function availableSharesOf(address lp) external view returns (uint256) {
+        uint256 shareAmount = shares[lp];
+        if (shareAmount == 0 || totalShares == 0) {
+            return 0;
+        }
+        uint256 available = availableLiquidity();
+        if (available == 0) {
+            return 0;
+        }
+        uint256 poolBalance = fxrp.balanceOf(address(this));
+        uint256 maxShares = (available * totalShares) / poolBalance;
+        return shareAmount <= maxShares ? shareAmount : maxShares;
     }
 
     function lockCoverage(uint256 policyId, uint256 amount) external onlyPolicy {
@@ -125,8 +171,12 @@ contract InsurancePool {
         require(amount > 0, "No coverage locked");
         lockedCoverage[policyId] = 0;
         totalLocked -= amount;
+<<<<<<< HEAD
+        fxrp.safeTransfer(to, amount);
+=======
         bool ok = fxrp.transfer(to, amount);
         require(ok, "FXRP transfer failed");
+>>>>>>> main
         emit Payout(policyId, to, amount);
     }
 

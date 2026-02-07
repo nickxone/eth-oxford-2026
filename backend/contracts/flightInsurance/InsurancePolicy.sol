@@ -2,6 +2,7 @@
 pragma solidity ^0.8.25;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IWeb2Json } from "@flarenetwork/flare-periphery-contracts/coston2/IWeb2Json.sol";
 import { ContractRegistry } from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
@@ -25,6 +26,8 @@ struct FlightDelayDTO {
 }
 
 contract InsurancePolicy {
+    using SafeERC20 for IERC20;
+
     enum PolicyStatus {
         Unclaimed,
         Active,
@@ -107,9 +110,13 @@ contract InsurancePolicy {
         }
 
         pool.lockCoverage(id, policy.coverage);
+<<<<<<< HEAD
+        fxrp.safeTransferFrom(policy.holder, address(pool), policy.premium);
+=======
 
         bool ok = fxrp.transferFrom(policy.holder, address(pool), policy.premium);
         require(ok, "FXRP transfer failed");
+>>>>>>> main
 
         policy.status = PolicyStatus.Active;
         registeredPolicies[id] = policy;
@@ -185,6 +192,36 @@ contract InsurancePolicy {
     function getAllPolicies() external view returns (Policy[] memory) {
         return registeredPolicies;
     }
+
+    function getPoliciesByHolder(address holder) external view returns (Policy[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < registeredPolicies.length; i++) {
+            if (registeredPolicies[i].holder == holder) {
+                count++;
+            }
+        }
+        Policy[] memory result = new Policy[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < registeredPolicies.length; i++) {
+            if (registeredPolicies[i].holder == holder) {
+                result[idx] = registeredPolicies[i];
+                idx++;
+            }
+        }
+        return result;
+    }
+
+    function activePoliciesCount() external view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < registeredPolicies.length; i++) {
+            if (registeredPolicies[i].status == PolicyStatus.Active) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    
 
     function abiSignatureHack(FlightDelayDTO memory dto) public pure {}
 
