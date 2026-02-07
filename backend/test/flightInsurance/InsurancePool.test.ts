@@ -51,6 +51,60 @@ describe("InsurancePool", function () {
         expect(after - before).to.equal(fxrp("50"));
     });
 
+    it("withdrawAmount burns shares and pays FXRP", async function () {
+        const { lp1, token, pool } = await deployPool();
+
+        await token.connect(lp1).approve(await pool.getAddress(), fxrp("200"));
+        await pool.connect(lp1).deposit(fxrp("200"));
+
+        const before = await token.balanceOf(lp1.address);
+        await pool.connect(lp1).withdrawAmount(fxrp("50"));
+        const after = await token.balanceOf(lp1.address);
+
+        expect(await pool.shares(lp1.address)).to.equal(fxrp("150"));
+        expect(after - before).to.equal(fxrp("50"));
+    });
+
+    it("withdrawAmount rounds up required shares when pool balance shrinks", async function () {
+        const { lp1, policy, token, pool } = await deployPool();
+
+        await token.connect(lp1).approve(await pool.getAddress(), fxrp("100"));
+        await pool.connect(lp1).deposit(fxrp("100"));
+
+        await pool.connect(policy).lockCoverage(1, fxrp("1"));
+        await pool.connect(policy).payoutPolicy(1, lp1.address);
+
+        const before = await token.balanceOf(lp1.address);
+        await pool.connect(lp1).withdrawAmount(fxrp("1"));
+        const after = await token.balanceOf(lp1.address);
+
+        const poolBalance = fxrp("99");
+        const totalShares = fxrp("100");
+        const expectedBurned = (fxrp("1") * totalShares + poolBalance - 1n) / poolBalance;
+        const expectedRemaining = totalShares - expectedBurned;
+
+        expect(after - before).to.equal(fxrp("1"));
+        expect(await pool.shares(lp1.address)).to.equal(expectedRemaining);
+        expect(await pool.totalShares()).to.equal(expectedRemaining);
+    });
+
+    it("withdrawAmount respects locked coverage", async function () {
+        const { lp1, policy, token, pool } = await deployPool();
+
+        await token.connect(lp1).approve(await pool.getAddress(), fxrp("100"));
+        await pool.connect(lp1).deposit(fxrp("100"));
+
+        await pool.connect(policy).lockCoverage(1, fxrp("80"));
+
+        await expect(pool.connect(lp1).withdrawAmount(fxrp("30"))).to.be.revertedWith(
+            "Insufficient available liquidity"
+        );
+
+        await pool.connect(policy).releaseCoverage(1);
+        await pool.connect(lp1).withdrawAmount(fxrp("30"));
+        expect(await pool.shares(lp1.address)).to.equal(fxrp("70"));
+    });
+
     it("respects locked coverage when withdrawing", async function () {
         const { lp1, policy, token, pool } = await deployPool();
 

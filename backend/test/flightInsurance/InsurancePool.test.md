@@ -13,6 +13,23 @@ This document describes each test in `backend/test/flightInsurance/InsurancePool
 - LP withdraws 50 shares.
 - Verifies share balance decreases to 150 and that the LP receives 50 FXRP.
 
+## withdrawAmount burns shares and pays FXRP
+- LP deposits 200 FXRP and receives 200 shares.
+- LP withdraws 50 FXRP using `withdrawAmount`.
+- Verifies share balance decreases to 150 and that the LP receives 50 FXRP.
+
+## withdrawAmount rounds up required shares when pool balance shrinks
+- LP deposits 100 FXRP and receives 100 shares.
+- Policy pays out 1 FXRP to reduce pool balance below total shares.
+- LP withdraws 1 FXRP and the pool burns 2 shares (rounded up).
+- Verifies LP receives 1 FXRP and share balance drops to 98.
+
+## withdrawAmount respects locked coverage
+- LP deposits 100 FXRP.
+- Policy locks 80 FXRP as coverage.
+- Attempt to withdraw 30 FXRP reverts due to insufficient free liquidity.
+- After coverage is released, withdrawal of 30 FXRP succeeds and LP’s shares drop to 70.
+
 ## respects locked coverage when withdrawing
 - LP deposits 100 FXRP.
 - Policy contract locks 80 FXRP as coverage.

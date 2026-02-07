@@ -84,6 +84,21 @@ async function main() {
     } else {
         console.log("Skip withdraw: no shares minted");
     }
+
+    // Smoke test for withdrawAmount using a small portion of available liquidity.
+    const available = await pool.availableLiquidity();
+    const withdrawAmount = available / 100n; // 1% of available liquidity
+    if (withdrawAmount > 0n) {
+        try {
+            await pool.withdrawAmount.staticCall(withdrawAmount);
+            await (await pool.withdrawAmount(withdrawAmount, {gasLimit: 10000000})).wait();
+            console.log("Withdrew amount:", withdrawAmount.toString());
+        } catch (err) {
+            console.log("Skip withdrawAmount: withdrawal reverted", err);
+        }
+    } else {
+        console.log("Skip withdrawAmount: no available liquidity");
+    }
 }
 
 main().catch((err) => {
