@@ -187,6 +187,36 @@ contract InsurancePolicy {
         return registeredPolicies;
     }
 
+    function getPoliciesByHolder(address holder) external view returns (Policy[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < registeredPolicies.length; i++) {
+            if (registeredPolicies[i].holder == holder) {
+                count++;
+            }
+        }
+        Policy[] memory result = new Policy[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < registeredPolicies.length; i++) {
+            if (registeredPolicies[i].holder == holder) {
+                result[idx] = registeredPolicies[i];
+                idx++;
+            }
+        }
+        return result;
+    }
+
+    function activePoliciesCount() external view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < registeredPolicies.length; i++) {
+            if (registeredPolicies[i].status == PolicyStatus.Active) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    
+
     function abiSignatureHack(FlightDelayDTO memory dto) public pure {}
 
     function isWeb2JsonProofValid(IWeb2Json.Proof calldata _proof) private view returns (bool) {
