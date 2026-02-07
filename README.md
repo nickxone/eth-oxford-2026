@@ -1,4 +1,5 @@
-## Backend Instructions
+## Backend Instructions 
+(`backend` folder)
 
 `cd` into the `backend` folder, then run the following command:
 ```
@@ -15,4 +16,26 @@ npx hardhat compile
 Make sure that your account has sufficient funds, then run the following to deploy a contract:
 ```
 npx hardhat run scripts/tryDeployment.ts --network coston2
+```
+
+## Mock API Instructions
+(`mock-api` folder)
+
+Environment setup:
+```
+python3 -m venv .venv
+source .venv/bin/activate  # Mac/Linux
+# .venv\Scripts\activate   # Windows
+```
+
+Install the dependencies:
+```
+pip install -r requirements.txt
+```
+
+To add `ngrok` token and host the API:
+```
+ngrok config add-authtoken
+uvicorn main:app --reload --port 8000
+ngrok http 8000
 ```

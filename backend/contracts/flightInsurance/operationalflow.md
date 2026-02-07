@@ -1,19 +1,19 @@
-# Flight Insurance Operational Flow (USDC)
+# Flight Insurance Operational Flow (FXRP)
 
 This document describes how `InsurancePolicy` and `InsurancePool` interact for the flight-delay insurance product.
 
 ## Actors
 - Policyholder: creates policies and submits claims
-- Liquidity provider / Pool owner: funds the pool with USDC and configures the policy contract
+- Liquidity provider / Pool owner: funds the pool with FXRP and configures the policy contract
 - Verifier: provides FDC proof data when a claim is made
 
 ## Contracts
 - `InsurancePolicy`: policy registry + claim resolution
-- `InsurancePool`: holds USDC liquidity and pays claims
+- `InsurancePool`: holds FXRP liquidity and pays claims
 
 ## Setup
-1. Deploy `InsurancePool` with the USDC token address.
-2. Deploy `InsurancePolicy` with the USDC token address and pool address.
+1. Deploy `InsurancePool` with the FXRP token address.
+2. Deploy `InsurancePolicy` with the FXRP token address and pool address.
 3. Pool owner calls `InsurancePool.setPolicyContract(insurancePolicy)`.
 4. Liquidity providers fund the pool using `InsurancePool.deposit(amount)`.
 
@@ -26,12 +26,12 @@ This document describes how `InsurancePolicy` and `InsurancePool` interact for t
 2. Policy is stored with status `Unclaimed`.
 
 ## Policy Acceptance
-1. Policyholder approves `InsurancePolicy` to transfer `premium` USDC.
+1. Policyholder approves `InsurancePolicy` to transfer `premium` FXRP.
 2. Anyone can call `InsurancePolicy.acceptPolicy(id)`.
 3. If called after `startTimestamp`, policy is `Retired` and premium is not transferred.
 4. Otherwise:
    - `InsurancePolicy` calls `InsurancePool.lockCoverage(id, coverage)`.
-   - `InsurancePolicy` transfers `premium` USDC to the pool.
+   - `InsurancePolicy` transfers `premium` FXRP to the pool.
    - Policy status becomes `Active`.
 
 ## Claim (On-Chain Resolution)
@@ -53,7 +53,7 @@ This document describes how `InsurancePolicy` and `InsurancePool` interact for t
 - Suggested extension:
   - `acceptPolicy` locks coverage
   - `verifyXRPLPayment` validates XRPL tx
-  - `collectPremium` transfers USDC premium to pool
+  - `collectPremium` transfers FXRP premium to pool
 
 ## Testing Note (FDC Down)
 `InsurancePolicy` supports an optional custom FDC verifier address in the constructor. If provided, it will be used instead of the on-chain FDC registry. This allows mocking `verifyWeb2Json` during tests without altering production logic.

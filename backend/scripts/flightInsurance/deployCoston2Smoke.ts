@@ -7,10 +7,18 @@ async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("Deployer:", deployer.address);
 
+<<<<<<< HEAD
     const tokenAddr = await getFXRPTokenAddress();
     console.log("FXRP token:", tokenAddr);
 
     const token = await ethers.getContractAt("IERC20", tokenAddr);
+=======
+    const TestERC20 = await ethers.getContractFactory("TestERC20");
+    const token = await TestERC20.deploy("FXRP", "FXRP", 6, fxrp("1000000"));
+    await token.waitForDeployment();
+    const tokenAddr = await token.getAddress();
+    console.log("Mock FXRP:", tokenAddr);
+>>>>>>> main
 
     const InsurancePool = await ethers.getContractFactory("InsurancePool");
     const pool = await InsurancePool.deploy(tokenAddr);
@@ -28,6 +36,7 @@ async function main() {
     await setPolicyTx.wait();
     console.log("Policy contract set");
 
+<<<<<<< HEAD
     // Fund pool liquidity (requires deployer to hold FXRP on Coston2)
     const depositAmount = fxrp("0.1");
     const balance = await token.balanceOf(deployer.address);
@@ -36,6 +45,10 @@ async function main() {
             `Insufficient FXRP balance. Have ${balance.toString()} need ${depositAmount.toString()}`
         );
     }
+=======
+    // Fund pool liquidity
+    const depositAmount = fxrp("1000");
+>>>>>>> main
     await (await token.approve(poolAddr, depositAmount)).wait();
     await (await pool.deposit(depositAmount)).wait();
     console.log("Deposited liquidity:", depositAmount.toString());
@@ -44,8 +57,13 @@ async function main() {
     const now = Math.floor(Date.now() / 1000);
     const startTs = now + 60;
     const endTs = now + 3600;
+<<<<<<< HEAD
     const premium = fxrp("0.001");
     const coverage = fxrp("0.02");
+=======
+    const premium = fxrp("10");
+    const coverage = fxrp("200");
+>>>>>>> main
 
     const createTx = await policy.createPolicy(
         "AA1234-2026-02-10",

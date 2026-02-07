@@ -4,16 +4,16 @@ import { Client, Wallet, xrpToDrops, TxResponse, Payment } from "xrpl";
 
 // yarn hardhat run scripts/fassets/xrpPayment.ts
 
-const AGENT_ADDRESS = "r4KgCNzn9ZuNjpf17DEHZnyyiqpuj599Wm"; // Agent underlying chain address
+const AGENT_ADDRESS = "r4uKJRy9mjxGHw1yzS1SrtaKCUwT66MCcP"; // Agent underlying chain address
 const AMOUNT_XRP = "10.025"; // XRP amount to send
-const PAYMENT_REFERENCE = "4642505266410001000000000000000000000000000000000000000000f655fb";
+const PAYMENT_REFERENCE = "46425052664100010000000000000000000000000000000000000000018ba2d3";
 
 async function send20XrpWithReference() {
     const client = new Client("wss://s.altnet.rippletest.net:51233"); // Testnet
     await client.connect();
 
     // XRP Ledger Testnet seed
-    const wallet: Wallet = Wallet.fromSeed("s000000000000000000000000000000"); // Sender wallet seed
+    const wallet: Wallet = Wallet.fromSeed("sEdVkUmSxmZn4uPn69sQSPS7HB7FyGF"); // Sender wallet seed
 
     const payment: Payment = {
         TransactionType: "Payment",

@@ -16,7 +16,7 @@ const { VERIFIER_URL_TESTNET, VERIFIER_API_KEY_TESTNET, COSTON2_DA_LAYER_URL } =
 // const apiUrl = "https://swapi.dev/api/people/3/";
 // const postProcessJq = `{name: .name, height: .height, mass: .mass, numberOfFilms: .films | length, uid: (.url | split("/") | .[-2] | tonumber)}`;
 const apiUrl = "https://swapi.info/api/people/3";
-const postProcessJq = `{name: .name, height: .height, mass: .mass, numberOfFilms: .films | length, uid: (.url | split("/") | .[-1] | tonumber)}`;
+const postProcessJq = `{name: .name, height: .height, mass: .mass, numberOfFilms: .films | length, uid: (.url | split("/") | .[-1]) *1}`;
 const httpMethod = "GET";
 // Defaults to "Content-Type": "application/json"
 const headers = "{}";
@@ -40,7 +40,7 @@ async function prepareAttestationRequest(apiUrl: string, postProcessJq: string, 
         abiSignature: abiSignature,
     };
 
-    const url = `${verifierUrlBase}/Web2Json/prepareRequest`;
+    const url = `${verifierUrlBase}/verifier/web2/Web2Json/prepareRequest`;
     const apiKey = VERIFIER_API_KEY_TESTNET;
 
     return await prepareAttestationRequestBase(url, apiKey, attestationTypeBase, sourceIdBase, requestBody);

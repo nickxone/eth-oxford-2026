@@ -110,7 +110,13 @@ contract InsurancePolicy {
         }
 
         pool.lockCoverage(id, policy.coverage);
+<<<<<<< HEAD
         fxrp.safeTransferFrom(policy.holder, address(pool), policy.premium);
+=======
+
+        bool ok = fxrp.transferFrom(policy.holder, address(pool), policy.premium);
+        require(ok, "FXRP transfer failed");
+>>>>>>> main
 
         policy.status = PolicyStatus.Active;
         registeredPolicies[id] = policy;
