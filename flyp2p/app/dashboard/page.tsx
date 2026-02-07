@@ -147,7 +147,7 @@ export default function DashboardPage() {
 
   return (
     <div
-      className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen text-[#0c1018]`}
+      className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen overflow-x-hidden text-[#0c1018]`}
     >
       <main className="relative mx-auto flex w-full flex-col gap-8 px-6 pb-24 sm:px-12">
         <PageBanner image="/buy_page_banner.jpg" />
@@ -270,7 +270,7 @@ export default function DashboardPage() {
                             <CollapsibleTrigger asChild>
                               <Button
                                 variant="ghost"
-                                className="group w-full justify-between px-3 py-2 text-xs uppercase tracking-[0.3em] text-[#6b7482]"
+                                className="group w-full justify-between px-3 py-2 text-xs uppercase text-[#6b7482]"
                               >
                                 Flight Status
                                 <ChevronDownIcon className="h-4 w-4 text-[#6b7482] transition-transform group-data-[state=open]:rotate-180" />

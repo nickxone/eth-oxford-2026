@@ -109,7 +109,7 @@ export default function PoolPage() {
 
   return (
     <div
-      className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen text-[#0c1018]`}
+      className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen overflow-x-hidden text-[#0c1018]`}
     >
       <main className="relative mx-auto flex w-full flex-col gap-8 px-6 pb-24 sm:px-12">
         <PageBanner image="/buy_page_banner.jpg" />
