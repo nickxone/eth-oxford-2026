@@ -1,0 +1,45 @@
+# --- Security & Environment ---
+.env
+.env.local
+.env.production
+*.pem
+*.key
+
+# --- Build & Compiled Output ---
+node_modules/
+dist/
+build/
+.next/
+out/
+cache/
+artifacts/
+typechain-types/
+
+# Prevents accidental uploads of large binaries
+*.exe
+*.dll
+
+# --- Tooling & Metadata ---
+.husky/
+.eslintcache
+.stylelintcache
+.npm
+.yarn/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Hardhat Specific ---
+# Prevents sharing local Hardhat network state
+/cache
+/artifacts
+/typechain-types
+coverage
+coverage.json
