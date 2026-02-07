@@ -2,12 +2,16 @@ import { HardhatUserConfig } from "hardhat/config";
 import { task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
-import "@tenderly/hardhat-tenderly";
 require("@nomiclabs/hardhat-truffle5");
 // import { vars } from "hardhat/config";
 const { vars } = require("hardhat/config");
 
 require("dotenv").config();
+
+const ENABLE_TENDERLY = process.env.ENABLE_TENDERLY === "true";
+if (ENABLE_TENDERLY) {
+    require("@tenderly/hardhat-tenderly");
+}
 
 // Load environment variables
 const PRIVATE_KEY = process.env.PRIVATE_KEY ?? "";
@@ -65,14 +69,14 @@ const config: HardhatUserConfig = {
             url: FLARE_RPC_API_KEY
                 ? `https://coston-api-tracer.flare.network/ext/C/rpc?x-apikey=${FLARE_RPC_API_KEY}`
                 : "https://coston-api.flare.network/ext/C/rpc",
-            accounts: [`${PRIVATE_KEY}`],
+            accounts: [process.env.PRIVATE_KEY_A!, process.env.PRIVATE_KEY_B!, `${PRIVATE_KEY}`],
             chainId: 16,
         },
         coston2: {
             url: FLARE_RPC_API_KEY
                 ? `https://coston2-api-tracer.flare.network/ext/C/rpc?x-apikey=${FLARE_RPC_API_KEY}`
                 : "https://coston2-api.flare.network/ext/C/rpc",
-            accounts: [`${PRIVATE_KEY}`],
+            accounts: [process.env.PRIVATE_KEY_A!, process.env.PRIVATE_KEY_B!, `${PRIVATE_KEY}`],
             chainId: 114,
         },
         songbird: {
@@ -179,11 +183,7 @@ const config: HardhatUserConfig = {
     },
     typechain: {
         target: "truffle-v5",
-    },
-    tenderly: {
-        username: TENDERLY_USERNAME,
-        project: TENDERLY_PROJECT_SLUG,
-    },
+    }
 };
 
 export default config;
