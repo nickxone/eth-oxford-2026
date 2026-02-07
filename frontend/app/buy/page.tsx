@@ -42,9 +42,11 @@ const Step1Schema = z.object({
 
 const Step2Schema = z.object({
   // you can add user-selectable coverage fields later (tier, coverage amount, etc.)
-  acceptedQuote: z.literal(true, {
-    errorMap: () => ({ message: "Please accept the quote to continue." }),
-  }),
+  acceptedQuote: z
+    .boolean()
+    .refine((value) => value, {
+      message: "Please accept the quote to continue.",
+    }),
 });
 
 const Step3Schema = z.object({
@@ -75,17 +77,8 @@ export default function BuyPage() {
     []
   );
 
-  // Per-step resolver (only validates current step)
-  const stepResolver = useMemo(() => {
-    if (currentStep === 1) return zodResolver(Step1Schema);
-    if (currentStep === 2) return zodResolver(Step2Schema);
-    if (currentStep === 3) return zodResolver(Step3Schema);
-    // step 4 is display-only
-    return zodResolver(FullSchema);
-  }, [currentStep]);
-
   const form = useForm<FormValues>({
-    resolver: stepResolver,
+    resolver: zodResolver(FullSchema),
     mode: "onTouched",
     defaultValues: {
       flightNumber: "BA123",
