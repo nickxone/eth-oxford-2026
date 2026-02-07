@@ -5,11 +5,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract InsurancePool {
-<<<<<<< HEAD
     using SafeERC20 for IERC20;
 
-=======
->>>>>>> main
     IERC20 public immutable fxrp;
     address public owner;
     address public policyContract;
@@ -69,12 +66,7 @@ contract InsurancePool {
             mintedShares = (amount * totalShares) / poolBalance;
             require(mintedShares > 0, "Deposit too small");
         }
-<<<<<<< HEAD
         fxrp.safeTransferFrom(msg.sender, address(this), amount);
-=======
-        bool ok = fxrp.transferFrom(msg.sender, address(this), amount);
-        require(ok, "FXRP transfer failed");
->>>>>>> main
         shares[msg.sender] += mintedShares;
         totalShares += mintedShares;
         emit Deposited(msg.sender, amount);
@@ -90,12 +82,7 @@ contract InsurancePool {
         require(availableLiquidity() >= amount, "Insufficient available liquidity");
         shares[msg.sender] -= shareAmount;
         totalShares -= shareAmount;
-<<<<<<< HEAD
         fxrp.safeTransfer(msg.sender, amount);
-=======
-        bool ok = fxrp.transfer(msg.sender, amount);
-        require(ok, "FXRP transfer failed");
->>>>>>> main
         emit Withdrawn(msg.sender, amount);
         emit SharesBurned(msg.sender, shareAmount);
     }
@@ -171,12 +158,7 @@ contract InsurancePool {
         require(amount > 0, "No coverage locked");
         lockedCoverage[policyId] = 0;
         totalLocked -= amount;
-<<<<<<< HEAD
         fxrp.safeTransfer(to, amount);
-=======
-        bool ok = fxrp.transfer(to, amount);
-        require(ok, "FXRP transfer failed");
->>>>>>> main
         emit Payout(policyId, to, amount);
     }
 
