@@ -98,7 +98,7 @@ export default function PoolPage() {
   const riskTableData = useMemo(() => 
     activePolicies.map(p => ({
       flight: p.flightRef,
-      departure: new Date(p.startTimestamp * 1000).toLocaleString(), // Format timestamp
+      departure: p.travelDate + " " + p.predictedArrivalTime, // Format timestamp
       locked: `${p.coverage} FXRP`,
       status: "Active" as const
     })), 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ethers } from "ethers";
 import { Orbitron, Space_Grotesk } from "next/font/google";
 import { useWallet } from "@/context/WalletContext";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { PageBanner } from "@/components/ui/page-banner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { POLICY_ABI, POLICY_ADDRESS } from "@/lib/contracts";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -38,6 +40,7 @@ const Step1Schema = z.object({
     .min(2, "Enter a flight number like BA123")
     .max(10, "Too long"),
   flightDate: z.string().min(1, "Select a date"),
+  arrivalTime: z.string().min(1, "Select a predicted arrival time"),
 });
 
 const Step2Schema = z.object({
@@ -51,8 +54,6 @@ const Step2Schema = z.object({
 
 const Step3Schema = z.object({
   paymentMethod: z.enum(["xrp", "fiat"], { message: "Select a payment method." }),
-  // demo fields, replace with your real inputs later
-  paymentReference: z.string().min(3, "Enter the memo/reference used."),
 });
 
 const FullSchema = Step1Schema.merge(Step2Schema).merge(Step3Schema);
@@ -61,17 +62,18 @@ type FormValues = z.infer<typeof FullSchema>;
 const steps = ["Flight details", "Coverage quote", "Payment & verification", "Live status"] as const;
 
 export default function BuyPage() {
-  const { isConnected, connectWallet, isConnecting, error } = useWallet();
+  const { isConnected, connectWallet, isConnecting, error, address } = useWallet();
 
   const [verificationState, setVerificationState] =
     useState<VerificationState>("idle");
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const quote = useMemo(
     () => ({
-      premium: "£5",
-      coverage: "£150",
+      premium: "0.05",
+      coverage: "1.5",
       condition: "Payout if delay > 3 hours",
     }),
     []
@@ -83,9 +85,9 @@ export default function BuyPage() {
     defaultValues: {
       flightNumber: "BA123",
       flightDate: "2026-02-10",
+      arrivalTime: "18:35",
       acceptedQuote: false,
       paymentMethod: "xrp",
-      paymentReference: "12345",
     },
   });
 
@@ -113,11 +115,11 @@ export default function BuyPage() {
     // Validate only fields relevant to the step
     const fields: (keyof FormValues)[] =
       currentStep === 1
-        ? ["flightNumber", "flightDate"]
+        ? ["flightNumber", "flightDate", "arrivalTime"]
         : currentStep === 2
         ? ["acceptedQuote"]
         : currentStep === 3
-        ? ["paymentMethod", "paymentReference"]
+        ? ["paymentMethod"]
         : [];
 
     const ok = fields.length ? await form.trigger(fields) : true;
@@ -139,27 +141,66 @@ export default function BuyPage() {
     }, 1200);
   };
 
+  const createPolicyOnChain = async (values: FormValues) => {
+    if (!window.ethereum) throw new Error("MetaMask not found");
+    if (!address) throw new Error("Wallet not connected");
+
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const contract = new ethers.Contract(POLICY_ADDRESS, POLICY_ABI, signer);
+
+    const premium = ethers.parseUnits(quote.premium, 18);
+    const coverage = ethers.parseUnits(quote.coverage, 18);
+    const depositedAmount = premium;
+
+    const tx = await contract.createPolicy(
+      address,
+      values.flightNumber,
+      values.flightDate,
+      values.arrivalTime,
+      premium,
+      coverage,
+      depositedAmount
+    );
+
+    await tx.wait();
+    return tx.hash as string;
+  };
+
   const onSubmit = async (values: FormValues) => {
     // Final validation on everything
     const parsed = FullSchema.safeParse(values);
     if (!parsed.success) return;
 
-    // call your API (example)
-    await fetch("/api/policy/buy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...parsed.data,
-        quote,
-        verificationState,
-      }),
-    });
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    setCurrentStep(4);
+    try {
+      // call your API (example)
+      await fetch("/api/policy/buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...parsed.data,
+          quote,
+          verificationState,
+        }),
+      });
+
+      await createPolicyOnChain(parsed.data);
+
+      setCurrentStep(4);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const flightNumber = form.watch("flightNumber");
   const flightDate = form.watch("flightDate");
+  const arrivalTime = form.watch("arrivalTime");
+  const premium = quote.premium;
+  const coverage = quote.coverage;
+  const depositedAmount = quote.premium;
 
   return (
     <div
@@ -235,6 +276,16 @@ export default function BuyPage() {
                   <CardContent className="grid gap-4">
                     <div className="grid gap-2">
                       <label className="text-sm font-medium text-[#1a2333]">
+                        Policy holder
+                      </label>
+                      <input
+                        value={address ?? "Not connected"}
+                        readOnly
+                        className="h-11 rounded-lg border border-[#dfe3ea] bg-[#f7f9fc] px-3 text-sm text-[#0c1018] shadow-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-[#1a2333]">
                         Airline code + flight number
                       </label>
                       <input
@@ -262,6 +313,22 @@ export default function BuyPage() {
                         </p>
                       ) : null}
                     </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium text-[#1a2333]">
+                        Arrival time
+                      </label>
+                      <input
+                        type="time"
+                        {...form.register("arrivalTime")}
+                        className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
+                      />
+                      {form.formState.errors.arrivalTime?.message ? (
+                        <p className="text-sm text-red-600">
+                          {form.formState.errors.arrivalTime.message}
+                        </p>
+                      ) : null}
+                    </div>
                   </CardContent>
 
                   <CardFooter className="flex flex-wrap gap-3">
@@ -284,13 +351,19 @@ export default function BuyPage() {
                     <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
                       <span>Premium</span>
                       <span className="text-base font-semibold text-[#0c1018]">
-                        {quote.premium}
+                        {premium}
                       </span>
                     </div>
                     <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
                       <span>Coverage amount</span>
                       <span className="text-base font-semibold text-[#0c1018]">
-                        {quote.coverage}
+                        {coverage}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
+                      <span>Deposited amount</span>
+                      <span className="text-base font-semibold text-[#0c1018]">
+                        {depositedAmount}
                       </span>
                     </div>
                     <div className="rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
@@ -366,31 +439,16 @@ export default function BuyPage() {
 
                       {/* Instructions (same as yours) */}
                       <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
-                        <p className="font-semibold">Hackathon demo</p>
-                        <p>Send 10 XRP to address `rFooBar...` with memo `12345`.</p>
+                        <p className="font-semibold">XRP Payment</p>
+                        <p>
+                          Send {premium} XRP to the demo address.
+                        </p>
                       </div>
-                      <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
+                      {/* <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
                         <p className="font-semibold">Bank transfer (UK)</p>
                         <p>Sort code: 11-22-33</p>
                         <p>Account number: 12345678</p>
-                      </div>
-
-                      {/* Reference input */}
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium text-[#1a2333]">
-                          Memo / reference used
-                        </label>
-                        <input
-                          {...form.register("paymentReference")}
-                          className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
-                          placeholder="12345"
-                        />
-                        {form.formState.errors.paymentReference?.message ? (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.paymentReference.message}
-                          </p>
-                        ) : null}
-                      </div>
+                      </div> */}
 
                       {isVerifying ? (
                         <div className="flex items-center gap-3 rounded-lg border border-[#dde4ee] bg-white px-3 py-2 text-sm text-[#3f4a59]">
@@ -435,8 +493,13 @@ export default function BuyPage() {
                       </Button>
 
                       {/* Final submit */}
-                      <Button type="submit" variant="secondary" className="rounded-full">
-                        Submit & Continue
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        className="rounded-full"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Submitting..." : "Submit & Continue"}
                       </Button>
                     </CardFooter>
                   </Card>
@@ -447,6 +510,12 @@ export default function BuyPage() {
                       <CardDescription>Always-visible summary.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 text-sm text-[#1f2a3a]">
+                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
+                        <span>Holder</span>
+                        <span className="text-base font-semibold text-[#0c1018]">
+                          {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Not connected"}
+                        </span>
+                      </div>
                       <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
                         <span>Flight</span>
                         <span className="text-base font-semibold text-[#0c1018]">
@@ -462,13 +531,25 @@ export default function BuyPage() {
                       <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
                         <span>Premium</span>
                         <span className="text-base font-semibold text-[#0c1018]">
-                          {quote.premium}
+                          {premium}
                         </span>
                       </div>
                       <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
                         <span>Coverage</span>
                         <span className="text-base font-semibold text-[#0c1018]">
-                          {quote.coverage}
+                          {coverage}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
+                        <span>Deposit</span>
+                        <span className="text-base font-semibold text-[#0c1018]">
+                          {depositedAmount}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
+                        <span>Arrival</span>
+                        <span className="text-base font-semibold text-[#0c1018]">
+                          {arrivalTime}
                         </span>
                       </div>
                       <div className="rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
@@ -529,7 +610,13 @@ export default function BuyPage() {
                         <span className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
                           Coverage
                         </span>
-                        <span className="font-medium text-[#0c1018]">{quote.coverage}</span>
+                        <span className="font-medium text-[#0c1018]">{coverage}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
+                          Deposit
+                        </span>
+                        <span className="font-medium text-[#0c1018]">{depositedAmount}</span>
                       </div>
                     </div>
                   </CardContent>
