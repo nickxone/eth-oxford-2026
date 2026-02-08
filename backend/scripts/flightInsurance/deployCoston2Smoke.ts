@@ -31,7 +31,7 @@ async function main() {
     const coverage = fxrp("0.02");
 
     // Fund pool liquidity
-    const depositAmount = fxrp("10");
+    const depositAmount = fxrp("0.1");
     const balance = await token.balanceOf(deployer.address);
     if (balance < depositAmount + premium) {
         throw new Error(`Insufficient FXRP balance: ${balance.toString()}`);
