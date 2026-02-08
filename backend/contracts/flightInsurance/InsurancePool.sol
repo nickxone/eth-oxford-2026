@@ -122,7 +122,7 @@ contract InsurancePool {
         if (fxrp.balanceOf(address(this)) == 0 || totalShares == 0) {
             return 0;
         }
-        return availableLiquidity() / fxrp.balanceOf(address(this)) * totalShares;
+        return (availableLiquidity() / fxrp.balanceOf(address(this))) * totalShares;
     }
 
     function availableStakeOf(address lp) external view returns (uint256) {

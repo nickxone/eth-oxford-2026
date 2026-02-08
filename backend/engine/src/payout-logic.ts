@@ -54,7 +54,7 @@ export async function payoutFxrpToXrp(destinationXrpAddress: string, lots: numbe
     }
 
     // 5. Trigger Payout
-    console.log("⚡ Calling payoutToXRP...");
+    console.log("Calling payoutToXRP...");
     const tx = await fAssetsRedeem.payoutToXRP(lots, destinationXrpAddress);
     console.log(`   Tx Sent: ${tx.hash}`);
 
