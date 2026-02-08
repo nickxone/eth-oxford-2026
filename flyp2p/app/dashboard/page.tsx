@@ -8,19 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ChevronDownIcon } from "lucide-react";
 import { PageBanner } from "@/components/ui/page-banner";
 
 const spaceGrotesk = Space_Grotesk({
@@ -36,6 +38,7 @@ const orbitron = Orbitron({
 
 type PolicyStatus = "active" | "processing" | "claimed" | "expired";
 type CheckState = "idle" | "verifying" | "success" | "failure";
+type PolicyFilter = "all" | PolicyStatus;
 
 type Policy = {
   id: string;
@@ -60,15 +63,6 @@ const statusStyles: Record<PolicyStatus, string> = {
   claimed: "border-indigo-200 bg-indigo-50 text-indigo-700",
   expired: "border-slate-200 bg-slate-50 text-slate-600",
 };
-
-const confettiPieces = [
-  { left: "12%", top: "12%", color: "bg-[#5fe3ff]", delay: "0s" },
-  { left: "24%", top: "22%", color: "bg-[#7cfdb6]", delay: "0.1s" },
-  { left: "40%", top: "10%", color: "bg-[#a478ff]", delay: "0.2s" },
-  { left: "58%", top: "18%", color: "bg-[#5fe3ff]", delay: "0.15s" },
-  { left: "70%", top: "8%", color: "bg-[#7cfdb6]", delay: "0.3s" },
-  { left: "82%", top: "20%", color: "bg-[#a478ff]", delay: "0.25s" },
-];
 
 export default function DashboardPage() {
   const { address, isConnected, connectWallet, isConnecting } = useWallet();
@@ -114,6 +108,8 @@ export default function DashboardPage() {
         return acc;
       }, {} as Record<string, CheckState>)
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PolicyFilter>("all");
 
   const handleCheck = (policy: Policy) => {
     setCheckStates((prev) => ({ ...prev, [policy.id]: "verifying" }));
@@ -131,7 +127,7 @@ export default function DashboardPage() {
     return `${value.slice(0, 6)}...${value.slice(-4)}`;
   };
 
-  const getDerivedStatus = (policy: Policy, checkState: CheckState): PolicyStatus => {
+  const getDerivedStatus = (checkState: CheckState): PolicyStatus => {
     if (checkState === "verifying") return "processing";
     if (checkState === "success") return "claimed";
     if (checkState === "failure") return "expired";
@@ -145,12 +141,54 @@ export default function DashboardPage() {
     return policy.liveStatus;
   };
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<PolicyFilter, number> = {
+      all: policies.length,
+      active: 0,
+      processing: 0,
+      claimed: 0,
+      expired: 0,
+    };
+    policies.forEach((policy) => {
+      const status = getDerivedStatus(checkStates[policy.id] ?? "idle");
+      counts[status] += 1;
+    });
+    return counts;
+  }, [policies, checkStates]);
+
+  const filteredPolicies = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return policies.filter((policy) => {
+      const checkState = checkStates[policy.id] ?? "idle";
+      const status = getDerivedStatus(checkState);
+      if (statusFilter !== "all" && status !== statusFilter) return false;
+      if (!query) return true;
+      const haystack = [
+        policy.id,
+        policy.nftId,
+        policy.flightNumber,
+        policy.flightDate,
+        policy.coverage,
+        policy.premium ?? "",
+        policy.trigger,
+        policy.scheduledArrival,
+        policy.actualArrival,
+        policy.liveStatus,
+        status,
+        policy.outcome,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [policies, checkStates, statusFilter, searchQuery]);
+
   return (
     <div
       className={`${spaceGrotesk.variable} ${orbitron.variable} min-h-screen overflow-x-hidden text-[#0c1018]`}
     >
       <main className="relative mx-auto flex w-full flex-col gap-8 px-6 pb-24 sm:px-12">
-        <PageBanner image="/buy_page_banner.jpg" />
+        <PageBanner image="/dashboard_page_banner.jpg" />
         <section className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-3">
             <Badge className="w-fit bg-indigo-50 text-indigo-700">Claims Dashboard</Badge>
@@ -197,34 +235,121 @@ export default function DashboardPage() {
             </CardFooter>
           </Card>
         ) : (
-          <section className="grid gap-6">
-            {policies.map((policy) => {
-              const checkState = checkStates[policy.id] ?? "idle";
-              const status = getDerivedStatus(policy, checkState);
-              const liveStatus = getLiveStatus(policy, checkState);
-              const showResult = checkState === "success" || checkState === "failure";
+          <section className="grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase text-[#6b7482]">
+                  Policies
+                </p>
+                <p className="text-sm text-[#3f4a59]">
+                  {policies.length}{" "}
+                  {policies.length === 1 ? "policy" : "policies"} connected to
+                  your wallet.
+                </p>
+              </div>
+              <Badge variant="secondary" className="w-fit">
+                Live flight monitoring
+              </Badge>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/70 shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-white/70 px-4 py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as PolicyFilter)}>
+                    <TabsList variant="line" className="flex-wrap">
+                      <TabsTrigger value="all">
+                        All
+                        <Badge variant="secondary">{statusCounts.all}</Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="active">
+                        Active
+                        <Badge variant="secondary">{statusCounts.active}</Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="processing">
+                        Processing
+                        <Badge variant="secondary">{statusCounts.processing}</Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="claimed">
+                        Claimed
+                        <Badge variant="secondary">{statusCounts.claimed}</Badge>
+                      </TabsTrigger>
+                      <TabsTrigger value="expired">
+                        Expired
+                        <Badge variant="secondary">{statusCounts.expired}</Badge>
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search flight, policy, status, or trigger"
+                    className="h-10 w-full shadow-sm rounded-lg bg-transparent px-3 text-sm text-[#0c1018] outline-none transition focus:border-[#5fe3ff] lg:max-w-sm"
+                  />
+                </div>
+                <p className="text-xs text-[#6b7482]">
+                  Showing {filteredPolicies.length} of {policies.length} policies.
+                </p>
+              </div>
+              <div className="overflow-auto">
+                <Table className="min-w-[1100px] text-sm">
+                  <TableHeader className="bg-muted sticky top-0 z-10">
+                    <TableRow>
+                      <TableHead>Flight</TableHead>
+                      <TableHead>Coverage</TableHead>
+                      <TableHead>Trigger</TableHead>
+                      <TableHead>Arrival</TableHead>
+                      <TableHead>Live Status</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Result</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPolicies.map((policy) => {
+                      const checkState = checkStates[policy.id] ?? "idle";
+                      const status = getDerivedStatus(checkState);
+                      const liveStatus = getLiveStatus(policy, checkState);
 
-              return (
-                <Collapsible
-                  key={policy.id} 
-                  className={cn(cardBase, "rounded-xl")}
-                >
-                  <Card className="border-0 bg-transparent shadow-none">
-                    <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
-                      <CollapsibleTrigger asChild>
-                        <button className="group flex w-full items-start justify-between gap-4 text-left">
-                          <div>
-                            <CardTitle className="text-2xl font-semibold">
-                              {policy.flightNumber}
-                              <span className="ml-2 text-sm font-normal text-[#6b7482]">
-                                {policy.flightDate}
-                              </span>
-                            </CardTitle>
-                            <CardDescription className="mt-1">
-                              Policy ID: {policy.id} • Token: {policy.nftId}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2">
+                      return (
+                        <TableRow key={policy.id} className="align-top">
+                          <TableCell>
+                            <p className="font-semibold">{policy.flightNumber}</p>
+                            <p className="text-xs text-[#6b7482]">
+                              {policy.flightDate}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-semibold">{policy.coverage}</p>
+                            {policy.premium ? (
+                              <p className="text-xs text-[#6b7482]">
+                                Premium {policy.premium}
+                              </p>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="text-[#1f2a3a]">
+                            {policy.trigger}
+                          </TableCell>
+                          <TableCell>
+                            <div className="grid gap-1 text-xs text-[#6b7482]">
+                              <p>
+                                Scheduled{" "}
+                                <span className="font-semibold text-[#0c1018]">
+                                  {policy.scheduledArrival}
+                                </span>
+                              </p>
+                              <p>
+                                Actual{" "}
+                                <span className="font-semibold text-[#0c1018]">
+                                  {checkState === "idle"
+                                    ? "TBD"
+                                    : policy.actualArrival}
+                                </span>
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{liveStatus}</Badge>
+                          </TableCell>
+                          <TableCell>
                             <Badge
                               variant="outline"
                               className={cn("border px-3 py-1 text-xs", statusStyles[status])}
@@ -237,127 +362,75 @@ export default function DashboardPage() {
                                     ? "Claimed"
                                     : "Expired"}
                             </Badge>
-                            <ChevronDownIcon className="mt-1 h-4 w-4 text-[#6b7482] transition-transform group-data-[state=open]:rotate-180" />
-                          </div>
-                        </button>
-                      </CollapsibleTrigger>
-                    </CardHeader>
-
-                    <CollapsibleContent>
-                      <CardContent className="grid gap-6 text-sm text-[#1f2a3a] lg:grid-cols-[1fr_1.1fr]">
-                        <div className="grid gap-3">
-                          <div className="flex items-center justify-between rounded-xl bg-white/70 px-4 py-3 shadow-sm">
-                            <span>Coverage</span>
-                            <span className="font-semibold">{policy.coverage}</span>
-                          </div>
-                          <div className="flex items-center justify-between rounded-xl bg-white/70 px-4 py-3 shadow-sm">
-                            <span>Trigger</span>
-                            <span className="font-medium">{policy.trigger}</span>
-                          </div>
-                          {policy.premium ? (
-                            <div className="flex items-center justify-between rounded-xl bg-white/70 px-4 py-3 shadow-sm">
-                              <span>Premium</span>
-                              <span className="font-medium">{policy.premium}</span>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="grid gap-4">
-                          <Collapsible
-                            defaultOpen
-                            className="rounded-2xl bg-white/70 px-2 py-2 shadow-sm"
-                          >
-                            <CollapsibleTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className="group w-full justify-between px-3 py-2 text-xs uppercase text-[#6b7482]"
-                              >
-                                Flight Status
-                                <ChevronDownIcon className="h-4 w-4 text-[#6b7482] transition-transform group-data-[state=open]:rotate-180" />
-                              </Button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="grid gap-3 px-3 pb-3 text-sm">
-                              <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                  <p className="text-xs text-[#6b7482]">Scheduled Arrival</p>
-                                  <p className="font-semibold">{policy.scheduledArrival}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-[#6b7482]">Actual Arrival</p>
-                                  <p className="font-semibold">
-                                    {checkState === "idle" ? "TBD" : policy.actualArrival}
-                                  </p>
-                                </div>
-                              </div>
-                              <Badge variant="secondary">{liveStatus}</Badge>
-                            </CollapsibleContent>
-                          </Collapsible>
-
-                          <div className="grid gap-3">
-                            <Button
-                              className="rounded-full"
-                              onClick={() => handleCheck(policy)}
-                              disabled={checkState === "verifying"}
-                            >
-                              {checkState === "verifying"
-                                ? "Verifying flight data via Flare..."
-                                : checkState === "success" || checkState === "failure"
-                                  ? "Check Again"
-                                  : "Check Flight Status"}
-                            </Button>
+                          </TableCell>
+                          <TableCell>
                             {checkState === "verifying" ? (
-                              <div className="rounded-lg bg-white/70 px-3 py-2 text-xs text-[#3f4a59]">
+                              <div className="text-xs text-[#3f4a59]">
                                 Attestation submitted, waiting for proof...
                               </div>
-                            ) : null}
-                          </div>
-
-                          {showResult ? (
-                            <div className="relative overflow-hidden rounded-2xl bg-white/80 p-4 shadow-md">
-                              {checkState === "success" ? (
-                                <>
-                                  <div className="pointer-events-none absolute inset-0">
-                                    {confettiPieces.map((piece, index) => (
-                                      <span
-                                        key={`${policy.id}-confetti-${index}`}
-                                        className={cn(
-                                          "absolute h-2 w-2 rounded-sm animate-bounce",
-                                          piece.color
-                                        )}
-                                        style={{
-                                          left: piece.left,
-                                          top: piece.top,
-                                          animationDelay: piece.delay,
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                  <p className="text-sm font-semibold text-[#0c1018]">
-                                    Flight delayed! {policy.coverage} sent to your wallet.
-                                  </p>
-                                  <p className="mt-1 text-xs text-[#3f4a59]">
-                                    Payout processed via Flare Data Connector.
-                                  </p>
-                                </>
-                              ) : (
-                                <>
-                                  <p className="text-sm font-semibold text-[#0c1018]">
-                                    Flight arrived on time. No payout due.
-                                  </p>
-                                  <p className="mt-1 text-xs text-[#3f4a59]">
-                                    This policy has expired.
-                                  </p>
-                                </>
-                              )}
+                            ) : checkState === "success" ? (
+                              <div>
+                                <p className="font-semibold text-[#0c1018]">
+                                  Flight delayed! {policy.coverage} sent.
+                                </p>
+                                <p className="text-xs text-[#3f4a59]">
+                                  Payout processed via Flare Data Connector.
+                                </p>
+                              </div>
+                            ) : checkState === "failure" ? (
+                              <div>
+                                <p className="font-semibold text-[#0c1018]">
+                                  Arrived on time. No payout due.
+                                </p>
+                                <p className="text-xs text-[#3f4a59]">
+                                  This policy has expired.
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-[#6b7482]">
+                                Run a check to confirm payout eligibility.
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-col items-end gap-2">
+                              <Button
+                                size="sm"
+                                className="rounded-full"
+                                onClick={() => handleCheck(policy)}
+                                disabled={checkState === "verifying"}
+                              >
+                                {checkState === "verifying"
+                                  ? "Verifying..."
+                                  : checkState === "success" ||
+                                      checkState === "failure"
+                                    ? "Check Again"
+                                    : "Check Status"}
+                              </Button>
+                              <span className="text-xs text-[#6b7482]">
+                                {policy.outcome === "payout"
+                                  ? "Eligible for payout"
+                                  : "On-time policy"}
+                              </span>
                             </div>
-                          ) : null}
-                        </div>
-                      </CardContent>
-                    </CollapsibleContent>
-                  </Card>
-                </Collapsible>
-              );
-            })}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {!filteredPolicies.length ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="h-24 text-center text-sm text-[#6b7482]"
+                        >
+                          No matching policies found.
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </section>
         )}
       </main>

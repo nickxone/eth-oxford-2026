@@ -15,9 +15,9 @@ import {
 export function Navbar() {
   return (
     <NavigationMenu className="w-full justify-center bg-transparent">
-      <NavigationMenuList className="justify-center bg-transparent">
+      <NavigationMenuList className="no-scrollbar w-full flex-nowrap items-center justify-end gap-2 overflow-x-auto bg-transparent px-2">
         <NavigationMenuItem>
-          <NavigationMenuTrigger className="bg-transparent hover:bg-transparent data-[state=open]:bg-transparent">
+          <NavigationMenuTrigger className="bg-transparent text-xs hover:bg-transparent data-[state=open]:bg-transparent sm:text-sm">
             For Travelers
           </NavigationMenuTrigger>
           <NavigationMenuContent>
@@ -31,8 +31,8 @@ export function Navbar() {
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
-        <NavigationMenuItem className="hidden md:flex">
-          <NavigationMenuTrigger className="bg-transparent hover:bg-transparent data-[state=open]:bg-transparent">
+        <NavigationMenuItem>
+          <NavigationMenuTrigger className="bg-transparent text-xs hover:bg-transparent data-[state=open]:bg-transparent sm:text-sm">
             For Investors
           </NavigationMenuTrigger>
           <NavigationMenuContent>
@@ -46,7 +46,7 @@ export function Navbar() {
         <NavigationMenuItem>
           <NavigationMenuLink
             asChild
-            className={`${navigationMenuTriggerStyle()} bg-transparent hover:bg-transparent data-[state=open]:bg-transparent`}
+            className={`${navigationMenuTriggerStyle()} bg-transparent text-xs hover:bg-transparent data-[state=open]:bg-transparent sm:text-sm`}
           >
             <Link href="/docs">Docs</Link>
           </NavigationMenuLink>

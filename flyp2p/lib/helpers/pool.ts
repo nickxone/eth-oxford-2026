@@ -56,6 +56,23 @@ export async function readAvailableStakeOf(address: string) {
   return ethers.formatUnits(availableStake, Number(decimals));
 }
 
+export async function readUserSharePercentage(address: string) {
+  const provider = new ethers.JsonRpcProvider(COSTON2_RPC);
+  const pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
+
+  const [userShares, totalShares] = await Promise.all([
+    pool.sharesOf(address),
+    pool.totalSharesSupply(),
+  ]);
+
+  if (totalShares === BigInt(0)) {
+    return "0.00";
+  }
+
+  const scaled = (userShares * BigInt(10000)) / totalShares;
+  return (Number(scaled) / 100).toFixed(2);
+}
+
 export async function readPoolContracts(address?: string): Promise<PoolReadout> {
   const provider = new ethers.JsonRpcProvider(COSTON2_RPC);
   const network = await provider.getNetwork();
@@ -98,4 +115,28 @@ export async function readPoolContracts(address?: string): Promise<PoolReadout> 
     walletPoolShares: address ? format(sharesOf) : undefined,
     walletPoolLiquidity: address ? format(sharesAmount) : undefined,
   };
+}
+
+async function getWalletSigner() {
+  if (!window.ethereum) {
+    throw new Error("No injected wallet found (MetaMask).");
+  }
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  return provider.getSigner();
+}
+
+async function getFxrpDecimalsWithWallet() {
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const fxrp = new ethers.Contract(FXRP_ADDRESS, ERC20_ABI, provider);
+  const decimals: number = await fxrp.decimals();
+  return decimals;
+}
+
+export async function withdrawFxrpAmount(amount: string) {
+  const signer = await getWalletSigner();
+  const pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer);
+  const decimals = await getFxrpDecimalsWithWallet();
+  const value = ethers.parseUnits(amount, decimals);
+  const tx = await pool.withdrawAmount(value);
+  return tx.wait();
 }

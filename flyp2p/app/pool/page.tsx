@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Orbitron, Space_Grotesk } from "next/font/google";
 import { useWallet } from "@/context/WalletContext";
 import {
-  readAvailableStakeOf,
   readFxrpBalance,
   readPoolContracts,
+  readUserSharePercentage,
 } from "@/lib/helpers/pool";
 import { readAllPolicies, PolicyReadout } from "@/lib/helpers/policy"; //
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ export default function PoolPage() {
   const { address, isConnected, connectWallet, isConnecting } = useWallet();
   const [walletFxrpBalance, setWalletFxrpBalance] = useState<string>("0.0");
   const [allPolicies, setAllPolicies] = useState<PolicyReadout[]>([]); //
-  const [availableStake, setAvailableStake] = useState<string>("0.0");
+  const [sharePercentage, setSharePercentage] = useState<string>("0.00");
   const [poolReadout, setPoolReadout] = useState<{
     poolAvailable: string;
     poolTotalLocked: string;
@@ -87,12 +87,12 @@ export default function PoolPage() {
         footer: "Current flights underwritten",
       },
       {
-        label: "Earnings",
-        value: `${availableStake} ${symbol}`,
-        footer: "Available to withdraw",
+        label: "My Pool Share",
+        value: `${sharePercentage}%`,
+        footer: "Share of total pool",
       },
     ];
-  }, [poolReadout, walletFxrpBalance, activePolicies, availableStake]);
+  }, [poolReadout, walletFxrpBalance, activePolicies, sharePercentage]);
 
   // Map contract policies to the RiskTable format
   const riskTableData = useMemo(() => 
@@ -119,14 +119,12 @@ export default function PoolPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const lockedFunds = 200;
-
   const formatAddress = (value?: string) => {
     if (!value) return "Not connected";
     return `${value.slice(0, 6)}...${value.slice(-4)}`;
   };
 
-  useEffect(() => {
+    useEffect(() => {
     let cancelled = false;
     if (!address) {
       setWalletFxrpBalance("0.0");
@@ -149,18 +147,18 @@ export default function PoolPage() {
   useEffect(() => {
     let cancelled = false;
     if (!address) {
-      setAvailableStake("0.0");
+      setSharePercentage("0.00");
       return () => {
         cancelled = true;
       };
     }
-    readAvailableStakeOf(address)
+    readUserSharePercentage(address)
       .then((value) => {
-        if (!cancelled) setAvailableStake(value);
+        if (!cancelled) setSharePercentage(value);
       })
       .catch(() => {
-        if (!cancelled) setAvailableStake("0.0");
-      });
+        if (!cancelled) setSharePercentage("0.00");
+      }); 
     return () => {
       cancelled = true;
     };
@@ -254,7 +252,6 @@ export default function PoolPage() {
             </CardHeader>
             <CardContent>
               <ManageLiquidityTabs
-                lockedFunds={lockedFunds}
                 walletBalance={walletFxrpBalance}
                 poolBalance={poolReadout?.walletPoolLiquidity ?? "0.0"}
               />
