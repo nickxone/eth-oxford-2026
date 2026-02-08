@@ -9,7 +9,7 @@ const { VERIFIER_URL_TESTNET, VERIFIER_API_KEY_TESTNET, COSTON2_DA_LAYER_URL } =
 
 // --- 1. CONFIGURATION FOR YOUR FLIGHT API ---
 // Ensure this URL is live and accessible
-const FLIGHT_ID = "QA999";
+const FLIGHT_ID = "BF1234";
 const apiUrl = `https://stelliferous-fairy-nonsyntactically.ngrok-free.dev/status/${FLIGHT_ID}`;
 
 // JQ Filter: Matches your API keys EXACTLY
@@ -79,7 +79,7 @@ async function decodeProofOnly(proof: any) {
 }
 
 async function main() {
-    console.log("🚀 Verifying Flight: FB1234");
+    console.log(`🚀 Verifying Flight: ${FLIGHT_ID}`);
 
     const data = await prepareAttestationRequest(apiUrl, postProcessJq, abiSignature);
 
