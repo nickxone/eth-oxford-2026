@@ -104,6 +104,19 @@ export default function DashboardPage() {
         liveStatus: "On Time",
         initialState: "idle",
       },
+      {
+        id: "POL-1387",
+        nftId: "NFT-4R02",
+        flightNumber: "BA001",
+        flightDate: "2025-04-22",
+        coverage: "0.01 C2FLR",
+        premium: "0.001 C2FLR",
+        trigger: "Payout if delay > 30 mins",
+        scheduledArrival: "09:15",
+        actualArrival: "11:15",
+        liveStatus: "Delayed (+120m)",
+        initialState: "idle",
+      },
     ],
     []
   );

@@ -9,7 +9,7 @@ const { VERIFIER_URL_TESTNET, VERIFIER_API_KEY_TESTNET, COSTON2_DA_LAYER_URL } =
 
 // --- 1. CONFIGURATION FOR YOUR FLIGHT API ---
 // Ensure this URL is live and accessible
-const FLIGHT_ID = "BF1234";
+const FLIGHT_ID = "BA001";
 const apiUrl = `https://stelliferous-fairy-nonsyntactically.ngrok-free.dev/status/${FLIGHT_ID}`;
 
 // JQ Filter: Matches your API keys EXACTLY
