@@ -9,7 +9,7 @@ This script performs a basic end‑to‑end flow on Coston2 using the real FXRP 
 3. Deploys `InsurancePolicy` with the FXRP + pool addresses.
 4. Sets the policy contract on the pool.
 5. Deposits FXRP into the pool.
-6. Creates a sample policy and accepts it.
+6. Transfers premium to `InsurancePolicy` and creates a sample policy.
 7. Prints the locked coverage amount.
 
 ## Requirements

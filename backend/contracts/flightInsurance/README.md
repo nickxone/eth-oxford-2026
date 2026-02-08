@@ -7,12 +7,11 @@ This folder contains the FXRP‑based flight‑delay insurance contracts for the
 ### `InsurancePolicy`
 - **Role:** Policy registry and claim resolver.
 - **What it stores:**
-  - Policyholder, flight reference, time window, delay threshold, premium, and coverage.
+  - Policyholder, flight reference, travel date, predicted arrival time, premium, and coverage.
 - **Key flows:**
-  - `createPolicy(...)` registers a new policy (no funds move here).
-  - `acceptPolicy(id)` locks coverage in the pool and transfers the policy premium in FXRP.
-  - `resolvePolicy(id, proof)` verifies an FDC Web2Json proof and pays out coverage if delay criteria are met.
-  - `expirePolicy(id)` releases coverage if the policy expired without a valid claim.
+  - `createPolicy(...)` registers a new policy, transfers the deposited FXRP premium to the pool, and locks coverage.
+  - `resolvePolicy(id, proof)` verifies an FDC Web2Json proof and pays out coverage if the flight is delayed.
+  - If the flight is not delayed, coverage is released and the policy expires.
 - **FDC usage:** The API is only queried when `resolvePolicy` is called (i.e., during a claim attempt).
 - **Testing hook:** The constructor accepts an optional custom FDC verifier address. If set, it will be used instead of the on-chain FDC registry. This is intended for local/testing only.
 
@@ -31,8 +30,8 @@ This folder contains the FXRP‑based flight‑delay insurance contracts for the
 
 ## End‑to‑End Flow (High Level)
 1. Liquidity providers fund the pool with FXRP.
-2. Policyholder creates a policy in `InsurancePolicy`.
-3. Policy is accepted, coverage is locked, premium is transferred to the pool.
+2. Policyholder transfers FXRP premium to `InsurancePolicy` and creates a policy.
+3. Coverage is locked during policy creation.
 4. If a claim is filed, `resolvePolicy` verifies FDC proof and pays out coverage.
 5. If no valid claim, policy expires and coverage is released back to the pool.
 

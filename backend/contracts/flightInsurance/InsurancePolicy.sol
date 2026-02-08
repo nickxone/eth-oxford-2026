@@ -3,7 +3,6 @@ pragma solidity ^0.8.25;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IWeb2Json } from "@flarenetwork/flare-periphery-contracts/coston2/IWeb2Json.sol";
 import { ContractRegistry } from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
 
@@ -18,30 +17,25 @@ interface IInsurancePool {
 }
 
 struct FlightDelayDTO {
-    string flightRef;
-    uint256 scheduledDepartureTs;
-    uint256 actualDepartureTs;
-    uint256 delayMins;
+    string flight;
     string status;
+    uint256 delayMinutes;
 }
 
 contract InsurancePolicy {
     using SafeERC20 for IERC20;
 
     enum PolicyStatus {
-        Unclaimed,
         Active,
         Settled,
-        Expired,
-        Retired
+        Expired
     }
 
     struct Policy {
         address holder;
         string flightRef;
-        uint256 startTimestamp;
-        uint256 expirationTimestamp;
-        uint256 delayThresholdMins;
+        string travelDate;
+        string predictedArrivalTime;
         uint256 premium;
         uint256 coverage;
         PolicyStatus status;
@@ -56,10 +50,8 @@ contract InsurancePolicy {
     Policy[] public registeredPolicies;
 
     event PolicyCreated(uint256 indexed id);
-    event PolicyAccepted(uint256 indexed id);
     event PolicySettled(uint256 indexed id);
     event PolicyExpired(uint256 indexed id);
-    event PolicyRetired(uint256 indexed id);
 
     constructor(address fxrpAddress, address poolAddress, address customFdcVerifier) {
         require(fxrpAddress != address(0), "FXRP address required");
@@ -74,26 +66,29 @@ contract InsurancePolicy {
 
     function createPolicy(
         string memory flightRef,
-        uint256 startTimestamp,
-        uint256 expirationTimestamp,
-        uint256 delayThresholdMins,
+        string memory travelDate,
+        string memory predictedArrivalTime,
         uint256 premium,
-        uint256 coverage
+        uint256 coverage,
+        uint256 depositedAmount
     ) external {
         require(bytes(flightRef).length > 0, "Flight ref required");
-        require(startTimestamp < expirationTimestamp, "Invalid timestamps");
         require(premium > 0, "Premium required");
         require(coverage > 0, "Coverage required");
+        require(depositedAmount == premium, "Deposit mismatch");
+        require(fxrp.balanceOf(address(this)) >= depositedAmount, "Insufficient deposited FXRP");
+
+        fxrp.safeTransfer(address(pool), depositedAmount);
+        pool.lockCoverage(registeredPolicies.length, coverage);
 
         Policy memory newPolicy = Policy({
             holder: msg.sender,
             flightRef: flightRef,
-            startTimestamp: startTimestamp,
-            expirationTimestamp: expirationTimestamp,
-            delayThresholdMins: delayThresholdMins,
+            travelDate: travelDate,
+            predictedArrivalTime: predictedArrivalTime,
             premium: premium,
             coverage: coverage,
-            status: PolicyStatus.Unclaimed,
+            status: PolicyStatus.Active,
             id: registeredPolicies.length
         });
 
@@ -101,87 +96,31 @@ contract InsurancePolicy {
         emit PolicyCreated(newPolicy.id);
     }
 
-    function acceptPolicy(uint256 id) external {
-        Policy memory policy = registeredPolicies[id];
-        require(policy.status == PolicyStatus.Unclaimed, "Policy not unclaimed");
-        if (block.timestamp > policy.startTimestamp) {
-            retireUnclaimedPolicy(id);
-            return;
-        }
-
-        pool.lockCoverage(id, policy.coverage);
-        fxrp.safeTransferFrom(policy.holder, address(pool), policy.premium);
-
-        policy.status = PolicyStatus.Active;
-        registeredPolicies[id] = policy;
-
-        emit PolicyAccepted(id);
-    }
-
     function resolvePolicy(uint256 id, IWeb2Json.Proof calldata proof) external {
         Policy memory policy = registeredPolicies[id];
         require(policy.status == PolicyStatus.Active, "Policy not active");
-
-        if (block.timestamp > policy.expirationTimestamp) {
-            expirePolicy(id);
-            return;
-        }
 
         require(isWeb2JsonProofValid(proof), "Invalid proof");
         FlightDelayDTO memory dto = abi.decode(proof.data.responseBody.abiEncodedData, (FlightDelayDTO));
 
         require(
-            keccak256(bytes(dto.flightRef)) == keccak256(bytes(policy.flightRef)),
-            string.concat("Flight ref mismatch: ", dto.flightRef)
+            keccak256(bytes(dto.flight)) == keccak256(bytes(policy.flightRef)),
+            string.concat("Flight ref mismatch: ", dto.flight)
         );
 
-        require(
-            dto.scheduledDepartureTs >= policy.startTimestamp && dto.scheduledDepartureTs <= policy.expirationTimestamp,
-            string.concat(
-                "Scheduled time out of range: ",
-                Strings.toString(dto.scheduledDepartureTs),
-                " vs. ",
-                Strings.toString(policy.startTimestamp),
-                "-",
-                Strings.toString(policy.expirationTimestamp)
-            )
-        );
-
-        require(
-            dto.delayMins >= policy.delayThresholdMins,
-            string.concat(
-                "Delay below threshold: ",
-                Strings.toString(dto.delayMins),
-                " vs. ",
-                Strings.toString(policy.delayThresholdMins)
-            )
-        );
-
-        policy.status = PolicyStatus.Settled;
-        registeredPolicies[id] = policy;
-
-        pool.payoutPolicy(id, policy.holder);
-        emit PolicySettled(id);
+        if (_isDelayed(dto)) {
+            policy.status = PolicyStatus.Settled;
+            registeredPolicies[id] = policy;
+            pool.payoutPolicy(id, policy.holder);
+            emit PolicySettled(id);
+        } else {
+            policy.status = PolicyStatus.Expired;
+            registeredPolicies[id] = policy;
+            pool.releaseCoverage(id);
+            emit PolicyExpired(id);
+        }
     }
 
-    function expirePolicy(uint256 id) public {
-        Policy memory policy = registeredPolicies[id];
-        require(policy.status == PolicyStatus.Active, "Policy not active");
-        require(block.timestamp > policy.expirationTimestamp, "Policy not expired");
-        policy.status = PolicyStatus.Expired;
-        registeredPolicies[id] = policy;
-        pool.releaseCoverage(id);
-        emit PolicyExpired(id);
-    }
-
-    function retireUnclaimedPolicy(uint256 id) public {
-        Policy memory policy = registeredPolicies[id];
-        require(policy.status == PolicyStatus.Unclaimed, "Policy not unclaimed");
-        require(block.timestamp > policy.startTimestamp, "Policy not started");
-        policy.status = PolicyStatus.Retired;
-        registeredPolicies[id] = policy;
-        emit PolicyRetired(id);
-    }
 
     function getAllPolicies() external view returns (Policy[] memory) {
         return registeredPolicies;
@@ -215,9 +154,14 @@ contract InsurancePolicy {
         return count;
     }
 
-    
-
     function abiSignatureHack(FlightDelayDTO memory dto) public pure {}
+
+    function _isDelayed(FlightDelayDTO memory dto) private pure returns (bool) {
+        if (dto.delayMinutes > 0) {
+            return true;
+        }
+        return keccak256(bytes(dto.status)) == keccak256(bytes("DELAYED"));
+    }
 
     function isWeb2JsonProofValid(IWeb2Json.Proof calldata _proof) private view returns (bool) {
         if (useCustomVerifier) {
