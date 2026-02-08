@@ -4,8 +4,8 @@
 
 // Make sure these match your Flare Coston2 deployment
 export const FXRP_ADDRESS = "0x0b6A3645c240605887a5532109323A3E12273dc7"; 
-export const POOL_ADDRESS = "0x58D3fF8b6d1A3C8f985609cf62c93e53da117a0C"; 
-export const POLICY_ADDRESS = "0x4E6f06d3604B87699eEA88a171135981BbAB3466";
+export const POOL_ADDRESS = "0x495878bD5eE1f4578A5441bADDA0211754e66343"; 
+export const POLICY_ADDRESS = "0xAFA9C64B813A93Ff87DFd5F9e0ae81A0798ec84F";
 
 // ============================================
 // 2. HUMAN-READABLE ABIs
@@ -33,6 +33,7 @@ export const POOL_ABI = [
   // Write
   "function deposit(uint256 amount)",
   "function withdraw(uint256 shareAmount)",
+  "function withdrawAmount(uint256 amount)",
   // Events
   "event Deposited(address indexed from, uint256 amount)",
   "event Withdrawn(address indexed to, uint256 amount)",

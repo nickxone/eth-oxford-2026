@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Orbitron, Space_Grotesk } from "next/font/google";
 import { useWallet } from "@/context/WalletContext";
 import {
-  readAvailableStakeOf,
   readFxrpBalance,
+  readAvailableStakeOf,
   readPoolContracts,
 } from "@/lib/helpers/pool";
 import { readAllPolicies, PolicyReadout } from "@/lib/helpers/policy"; //
@@ -126,7 +126,7 @@ export default function PoolPage() {
     return `${value.slice(0, 6)}...${value.slice(-4)}`;
   };
 
-  useEffect(() => {
+    useEffect(() => {
     let cancelled = false;
     if (!address) {
       setWalletFxrpBalance("0.0");
@@ -160,7 +160,7 @@ export default function PoolPage() {
       })
       .catch(() => {
         if (!cancelled) setAvailableStake("0.0");
-      });
+      }); 
     return () => {
       cancelled = true;
     };

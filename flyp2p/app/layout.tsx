@@ -39,11 +39,11 @@ export default function RootLayout({
             <div className="absolute bottom-[-20%] right-[-10%] h-[36rem] w-[36rem] rounded-full bg-[radial-gradient(circle,_rgba(177,144,255,0.18),_rgba(247,247,251,0)_60%)] blur-3xl" />
           </div>
           <div className="relative z-10">
-            <header className="mx-auto flex w-full items-center justify-between px-6 py-6 sm:px-12">
+            <header className="mx-auto flex w-full flex-nowrap items-center justify-between gap-4 px-6 py-6 sm:px-12">
               <Link href="/" className="text-xl font-semibold text-[#0c1018]">
                 FlyP2P
               </Link>
-              <div className="hidden sm:block">
+              <div className="min-w-0 flex-1">
                 <Navbar />
               </div>
             </header>
