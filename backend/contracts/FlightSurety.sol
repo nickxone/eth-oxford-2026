@@ -41,4 +41,3 @@ contract FlightSurety {
         emit PayoutExecuted(dto.flight, dto.delayMinutes, BENEFICIARY);
     }
 }
-`
