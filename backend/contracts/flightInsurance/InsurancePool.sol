@@ -173,7 +173,7 @@ contract InsurancePool {
         require(amount > 0, "No coverage locked");
         lockedCoverage[policyId] = 0;
         totalLocked -= amount;
-        fxrp.safeTransfer(to, amount);
+        fxrp.safeTransfer(to, amount); // swap this function to payoutToXRP
         emit Payout(policyId, to, amount);
     }
 
