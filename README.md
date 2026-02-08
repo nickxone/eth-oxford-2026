@@ -76,5 +76,5 @@ npx tsx --env-file=.env src/bridge-server.ts
 ### Test the server:
 
 ```
-curl -X POST http://localhost:4000/api/bridge -H "Content-Type: application/json" -d '{"xrplSeed":"sEdSmNfuDCSvseYo734a279W31tJQLP","recipientAddress":"0x098bCc8b14774620A8803016B74a964dD57E263D","lots":1}'
+curl -X POST http://localhost:4000/api/bridge -H "Content-Type: application/json" -d '{"xrplSeed":"sEdSmNfuDCSvseYo734a279W31tJQLP","recipientAddress":"0x0e0d3685463395dF3BCa251B6941084B3F3C264a","lots":1}'
 ```

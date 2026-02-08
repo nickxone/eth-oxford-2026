@@ -8,18 +8,28 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { RedemptionRequestInfo } from "flare-periphery-contracts-fassets-test/coston2/data/RedemptionRequestInfo.sol";
 
 contract FAssetsRedeem {
-    // 1. Redeem FAssets
-    function redeem(uint256 _lots, string memory _redeemerUnderlyingAddressString) public returns (uint256) {
-        // Calculate the amount of FXRP needed for redemption
+    // Function to fund this contract (just for clarity, though direct transfer works too)
+    receive() external payable {}
+
+    // 1. Payout directly to an XRP Address
+    function payoutToXRP(uint256 _lots, string memory _targetXrpAddress) public returns (uint256) {
         IAssetManager assetManager = ContractRegistry.getAssetManagerFXRP();
         AssetManagerSettings.Data memory settings = assetManager.getSettings();
+
+        // Calculate required fXRP
         uint256 amountToRedeem = settings.lotSizeAMG * _lots;
-
         IERC20 fAssetToken = IERC20(getFXRPAddress());
-        // Transfer FXRP from caller to AssetManager
-        fAssetToken.transferFrom(msg.sender, address(this), amountToRedeem);
 
-        uint256 redeemedAmountUBA = assetManager.redeem(_lots, _redeemerUnderlyingAddressString, payable(address(0)));
+        // Check if this contract has enough money in the pool
+        require(fAssetToken.balanceOf(address(this)) >= amountToRedeem, "Insufficient insurance pool balance");
+
+        // CRITICAL CHANGE: Approve the AssetManager to burn OUR tokens
+        fAssetToken.approve(address(assetManager), amountToRedeem);
+
+        // Call redeem.
+        // NOTE: The AssetManager will take fXRP from 'address(this)' and
+        // send XRP to '_targetXrpAddress'.
+        uint256 redeemedAmountUBA = assetManager.redeem(_lots, _targetXrpAddress, payable(address(0)));
 
         return redeemedAmountUBA;
     }
@@ -29,22 +39,16 @@ contract FAssetsRedeem {
         return address(assetManager.fAsset());
     }
 
-    // 2. Get the AssetManager settings
     function getSettings() public view returns (uint256 lotSizeAMG, uint256 assetDecimals) {
         IAssetManager assetManager = ContractRegistry.getAssetManagerFXRP();
         AssetManagerSettings.Data memory settings = assetManager.getSettings();
-        lotSizeAMG = settings.lotSizeAMG;
-        assetDecimals = settings.assetDecimals;
-
-        return (lotSizeAMG, assetDecimals);
+        return (settings.lotSizeAMG, settings.assetDecimals);
     }
 
-    // 3. Get the redemption request info
     function getRedemptionRequestInfo(
         uint256 _redemptionTicketId
     ) public view returns (RedemptionRequestInfo.Data memory) {
         IAssetManager assetManager = ContractRegistry.getAssetManagerFXRP();
-
         return assetManager.redemptionRequestInfo(_redemptionTicketId);
     }
 }
