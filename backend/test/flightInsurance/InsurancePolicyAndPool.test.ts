@@ -44,13 +44,17 @@ describe("InsurancePolicy + InsurancePool", function () {
         const [owner, lp, holder] = await ethers.getSigners();
 
         const TestERC20 = await ethers.getContractFactory("TestERC20");
-        const token = await TestERC20.deploy("FXRP", "FXRP", 6, fxrp("1000000"));
+        const tokenDeployed = await TestERC20.deploy("FXRP", "FXRP", 6, fxrp("1000000"));
+        await tokenDeployed.waitForDeployment();
+        const token = await ethers.getContractAt("TestERC20", await tokenDeployed.getAddress());
 
         const MockFdcVerifier = await ethers.getContractFactory("MockFdcVerifier");
         const verifier = await MockFdcVerifier.deploy();
 
         const InsurancePool = await ethers.getContractFactory("InsurancePool");
-        const pool = await InsurancePool.deploy(await token.getAddress());
+        const poolDeployed = await InsurancePool.deploy(await token.getAddress());
+        await poolDeployed.waitForDeployment();
+        const pool = await ethers.getContractAt("InsurancePool", await poolDeployed.getAddress());
 
         const InsurancePolicy = await ethers.getContractFactory("InsurancePolicy");
         const policy = await InsurancePolicy.deploy(

@@ -1,7 +1,10 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
-import "@tenderly/hardhat-tenderly";
+const ENABLE_TENDERLY = process.env.TENDERLY_ENABLE === "true";
+if (ENABLE_TENDERLY) {
+    require("@tenderly/hardhat-tenderly");
+}
 require("@nomiclabs/hardhat-truffle5");
 // import { vars } from "hardhat/config";
 const { vars } = require("hardhat/config");
@@ -170,10 +173,14 @@ const config: HardhatUserConfig = {
     typechain: {
         target: "truffle-v5",
     },
-    tenderly: {
-        username: TENDERLY_USERNAME,
-        project: TENDERLY_PROJECT_SLUG,
-    },
+    ...(ENABLE_TENDERLY
+        ? {
+              tenderly: {
+                  username: TENDERLY_USERNAME,
+                  project: TENDERLY_PROJECT_SLUG,
+              },
+          }
+        : {}),
 };
 
 export default config;
