@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ethers } from "ethers";
 import { PROOF_DATABASE } from "@/data/mockProofs";
+import { readPoliciesByHolder, resolvePolicyOnChain } from "@/lib/helpers/policy";
 import { Orbitron, Space_Grotesk } from "next/font/google";
 import { useWallet } from "@/context/WalletContext";
 import { Badge } from "@/components/ui/badge";
@@ -39,12 +39,11 @@ const orbitron = Orbitron({
 });
 
 type PolicyStatus = "active" | "processing" | "claimed" | "expired";
-type CheckState = "idle" | "verifying" | "success" | "failure";
+type CheckState = "idle" | "verifying" | "submitted" | "success" | "failure";
 type PolicyFilter = "all" | PolicyStatus;
 
 type Policy = {
   id: string;
-  nftId: string;
   flightNumber: string;
   flightDate: string;
   coverage: string;
@@ -65,71 +64,77 @@ const statusStyles: Record<PolicyStatus, string> = {
   expired: "border-slate-200 bg-slate-50 text-slate-600",
 };
 
-// --- CONFIGURATION ---
-const FLIGHT_SURETY_ADDRESS = "0xe7751281E60FB33A78F3ef6330742503FF7e49F1";
-
-const CONTRACT_ABI = [
-  "function claimPayout(tuple(bytes32[] merkleProof, tuple(bytes32 attestationType, bytes32 sourceId, uint64 votingRound, uint64 lowestUsedTimestamp, tuple(string url, string httpMethod, string headers, string queryParams, string body, string postProcessJq, string abiSignature) requestBody, tuple(bytes abiEncodedData) responseBody) data) proof) external",
-];
-
 export default function DashboardPage() {
   const { address, isConnected, connectWallet, isConnecting } = useWallet();
   const [txHashes, setTxHashes] = useState<Record<string, string>>({});
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const policies = useMemo<Policy[]>(
-    () => [
-      {
-        id: "POL-2045",
-        nftId: "NFT-84C2",
-        flightNumber: "BF1234",
-        flightDate: "2026-02-10",
-        coverage: "0.01 C2FLR",
-        premium: "0.001 C2FLR",
-        trigger: "Payout if delay > 30 mins",
-        scheduledArrival: "18:35",
-        actualArrival: "22:05",
-        liveStatus: "Delayed (+210m)",
-        initialState: "idle",
-      },
-      {
-        id: "POL-1981",
-        nftId: "NFT-4F12",
-        flightNumber: "QA999",
-        flightDate: "2026-02-12",
-        coverage: "0.01 C2FLR",
-        premium: "0.001 C2FLR",
-        trigger: "Payout if delay > 30 mins",
-        scheduledArrival: "09:15",
-        actualArrival: "09:15",
-        liveStatus: "On Time",
-        initialState: "idle",
-      },
-      {
-        id: "POL-1387",
-        nftId: "NFT-4R02",
-        flightNumber: "BA001",
-        flightDate: "2025-04-22",
-        coverage: "0.01 C2FLR",
-        premium: "0.001 C2FLR",
-        trigger: "Payout if delay > 30 mins",
-        scheduledArrival: "09:15",
-        actualArrival: "11:15",
-        liveStatus: "Delayed (+120m)",
-        initialState: "idle",
-      },
-    ],
-    []
-  );
-
-  const [checkStates, setCheckStates] = useState<Record<string, CheckState>>(
-    () =>
-      policies.reduce((acc, policy) => {
-        acc[policy.id] = policy.initialState ?? "idle";
-        return acc;
-      }, {} as Record<string, CheckState>)
-  );
+  const [checkStates, setCheckStates] = useState<Record<string, CheckState>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<PolicyFilter>("all");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!address) {
+      setPolicies([]);
+      setCheckStates({});
+      return;
+    }
+
+    setIsLoading(true);
+    readPoliciesByHolder(address)
+      .then((results) => {
+        if (!isMounted) return;
+        const mapped: Policy[] = results.map((policy) => {
+          const initialState: CheckState =
+            policy.status === "Settled"
+              ? "success"
+              : policy.status === "Expired"
+                ? "failure"
+                : "idle";
+
+          return {
+            id: policy.id,
+            flightNumber: policy.flightRef,
+            flightDate: policy.travelDate,
+            coverage: `${policy.coverage} FXRP`,
+            premium: `${policy.premium} FXRP`,
+            trigger: "Payout if delayed",
+            scheduledArrival: policy.predictedArrivalTime,
+            actualArrival: "TBD",
+            liveStatus:
+              policy.status === "Settled"
+                ? "Delay confirmed - payout triggered"
+                : policy.status === "Expired"
+                  ? "Arrived on time"
+                  : "Active on-chain",
+            initialState,
+          };
+        });
+
+        setPolicies(mapped);
+        setCheckStates(
+          mapped.reduce((acc, policy) => {
+            acc[policy.id] = policy.initialState ?? "idle";
+            return acc;
+          }, {} as Record<string, CheckState>)
+        );
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setPolicies([]);
+        setCheckStates({});
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [address]);
 
   const handleCheck = async (policy: Policy) => {
     if (!isConnected) {
@@ -148,20 +153,10 @@ export default function DashboardPage() {
         );
       }
 
-      if (!window.ethereum) throw new Error("MetaMask not found");
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(
-        FLIGHT_SURETY_ADDRESS,
-        CONTRACT_ABI,
-        signer
-      );
+      const txHash = await resolvePolicyOnChain(policy.id, proof);
 
-      const tx = await contract.claimPayout(proof);
-      await tx.wait();
-
-      setTxHashes((prev) => ({ ...prev, [policy.id]: tx.hash }));
-      setCheckStates((prev) => ({ ...prev, [policy.id]: "success" }));
+      setTxHashes((prev) => ({ ...prev, [policy.id]: txHash }));
+      setCheckStates((prev) => ({ ...prev, [policy.id]: "submitted" }));
     } catch (error: any) {
       const msg = error.reason || error.message || "";
 
@@ -181,13 +176,15 @@ export default function DashboardPage() {
 
   const getDerivedStatus = (checkState: CheckState): PolicyStatus => {
     if (checkState === "verifying") return "processing";
+    if (checkState === "submitted") return "processing";
     if (checkState === "success") return "claimed";
     if (checkState === "failure") return "expired";
     return "active";
   };
 
   const getLiveStatus = (policy: Policy, checkState: CheckState) => {
-    if (checkState === "verifying") return "Landed - Checking status...";
+    if (checkState === "verifying") return "Submitting proof...";
+    if (checkState === "submitted") return "Submitted - refresh for result";
     if (checkState === "success") return "Delay confirmed - payout triggered";
     if (checkState === "failure") return "Arrived on time";
     return policy.liveStatus;
@@ -217,7 +214,6 @@ export default function DashboardPage() {
       if (!query) return true;
       const haystack = [
         policy.id,
-        policy.nftId,
         policy.flightNumber,
         policy.flightDate,
         policy.coverage,
@@ -271,7 +267,16 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {policies.length === 0 ? (
+        {isLoading ? (
+          <Card className={cn(cardBase, "text-center")}>
+            <CardHeader>
+              <CardTitle>Loading policies...</CardTitle>
+              <CardDescription>
+                Fetching on-chain policies for your wallet.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : policies.length === 0 ? (
           <Card className={cn(cardBase, "text-center")}>
             <CardHeader>
               <CardTitle>No active policies found</CardTitle>
@@ -344,6 +349,7 @@ export default function DashboardPage() {
                 <Table className="min-w-[1100px] text-sm">
                   <TableHeader className="bg-muted sticky top-0 z-10">
                     <TableRow>
+                      <TableHead>ID</TableHead>
                       <TableHead>Flight</TableHead>
                       <TableHead>Coverage</TableHead>
                       <TableHead>Trigger</TableHead>
@@ -366,6 +372,9 @@ export default function DashboardPage() {
 
                       return (
                         <TableRow key={policy.id} className="align-top">
+                          <TableCell>
+                            <p className="font-semibold">{policy.id}</p>
+                          </TableCell>
                           <TableCell>
                             <p className="font-semibold">{policy.flightNumber}</p>
                             <p className="text-xs text-[#6b7482]">
@@ -423,6 +432,15 @@ export default function DashboardPage() {
                               <div className="text-xs text-[#3f4a59]">
                                 Attestation submitted, waiting for proof...
                               </div>
+                            ) : checkState === "submitted" ? (
+                              <div>
+                                <p className="font-semibold text-[#0c1018]">
+                                  Proof submitted to the contract.
+                                </p>
+                                <p className="text-xs text-[#3f4a59]">
+                                  Refresh the page to see updated on-chain status.
+                                </p>
+                              </div>
                             ) : checkState === "success" ? (
                               <div>
                                 <p className="font-semibold text-[#0c1018]">
@@ -465,12 +483,15 @@ export default function DashboardPage() {
                                 onClick={() => handleCheck(policy)}
                                 disabled={
                                   checkState === "verifying" ||
+                                  checkState === "submitted" ||
                                   checkState === "success" ||
                                   checkState === "failure"
                                 }
                               >
                                 {checkState === "verifying"
                                   ? "Verifying..."
+                                  : checkState === "submitted"
+                                    ? "Submitted"
                                   : checkState === "success"
                                     ? "Claimed"
                                     : checkState === "failure"

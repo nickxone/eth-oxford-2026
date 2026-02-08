@@ -4,8 +4,8 @@
 
 // Make sure these match your Flare Coston2 deployment
 export const FXRP_ADDRESS = "0x0b6A3645c240605887a5532109323A3E12273dc7"; 
-export const POOL_ADDRESS = "0x5D81bb3F68d2a2846B8cC00718Eea3830635a3fC"; 
-export const POLICY_ADDRESS = "0x88dbde53808c82F524ba6657DA4Bd117B1cdFB5d";
+export const POOL_ADDRESS = "0xfa2D700aAf28984c4bDb25C2eBB972561A868040"; 
+export const POLICY_ADDRESS = "0x8A62DCC0a2578c2c51b42E7522334EA3e7bA7093";
 
 // ============================================
 // 2. HUMAN-READABLE ABIs
