@@ -117,6 +117,37 @@ export async function resolvePolicyOnChain(
 }
 
 /**
+ * Creates a new policy on-chain.
+ */
+export async function createPolicyOnChain(params: {
+  holder: string;
+  flightRef: string;
+  travelDate: string;
+  predictedArrivalTime: string;
+  premium: bigint;
+  coverage: bigint;
+  depositedAmount: bigint;
+}) {
+  if (!window.ethereum) throw new Error("MetaMask not found");
+
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner();
+  const policyContract = new ethers.Contract(POLICY_ADDRESS, POLICY_ABI, signer);
+
+  const tx = await policyContract.createPolicy(
+    params.holder,
+    params.flightRef,
+    params.travelDate,
+    params.predictedArrivalTime,
+    params.premium,
+    params.coverage,
+    params.depositedAmount
+  );
+  await tx.wait();
+  return tx.hash as string;
+}
+
+/**
  * Checks if the Policy contract is allowed to spend the holder's FXRP.
  * This is required before calling acceptPolicy.
  */

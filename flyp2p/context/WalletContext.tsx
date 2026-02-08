@@ -14,6 +14,8 @@ interface WalletContextType {
     isConnected: boolean;
     isConnecting: boolean;
     error: string | null;
+    privateKey: string;
+    setPrivateKey: (value: string) => void;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -34,6 +36,14 @@ export function WalletProvider({ children }: {children: ReactNode}) {
     const [address, setAddress] = useState<string | undefined>(undefined);
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [privateKey, setPrivateKeyState] = useState<string>("");
+
+    const setPrivateKey = (value: string) => {
+        setPrivateKeyState(value);
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem("privateKey", value);
+        }
+    };
 
     const switchToCoston2 = async () => {
         if (!window.ethereum) {
@@ -81,6 +91,10 @@ export function WalletProvider({ children }: {children: ReactNode}) {
     };
 
     useEffect(() => {
+        if (typeof window !== "undefined") {
+            const savedKey = window.localStorage.getItem("privateKey");
+            if (savedKey) setPrivateKeyState(savedKey);
+        }
         // Autoconnect if already trusted 
         if (window.ethereum) {
             window.ethereum.request({ method: "eth_accounts" })
@@ -110,7 +124,7 @@ export function WalletProvider({ children }: {children: ReactNode}) {
     }, []);
     
     return (
-        <WalletContext.Provider value={{ address, connectWallet, switchToCoston2, isConnected: !!address, isConnecting, error }}>
+        <WalletContext.Provider value={{ address, connectWallet, switchToCoston2, isConnected: !!address, isConnecting, error, privateKey, setPrivateKey }}>
             {children}
         </WalletContext.Provider>
     );

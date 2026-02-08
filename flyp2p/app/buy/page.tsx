@@ -62,7 +62,7 @@ type FormValues = z.infer<typeof FullSchema>;
 const steps = ["Flight details", "Coverage quote", "Payment & verification", "Live status"] as const;
 
 export default function BuyPage() {
-  const { isConnected, connectWallet, isConnecting, error, address } = useWallet();
+  const { isConnected, connectWallet, isConnecting, error, address, setPrivateKey } = useWallet();
 
   const [verificationState, setVerificationState] =
     useState<VerificationState>("idle");
@@ -276,12 +276,13 @@ export default function BuyPage() {
                   <CardContent className="grid gap-4">
                     <div className="grid gap-2">
                       <label className="text-sm font-medium text-[#1a2333]">
-                        Policy holder
+                        XRP secret key
                       </label>
                       <input
-                        value={address ?? "Not connected"}
-                        readOnly
-                        className="h-11 rounded-lg border border-[#dfe3ea] bg-[#f7f9fc] px-3 text-sm text-[#0c1018] shadow-sm"
+                        type="password"
+                        placeholder="Enter XRP secret key"
+                        onChange={(event) => setPrivateKey(event.target.value)}
+                        className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -421,14 +422,6 @@ export default function BuyPage() {
                             />
                             XRP
                           </label>
-                          <label className="flex items-center gap-2 rounded-full border px-4 py-2">
-                            <input
-                              type="radio"
-                              value="fiat"
-                              {...form.register("paymentMethod")}
-                            />
-                            Fiat (UK bank transfer)
-                          </label>
                         </div>
                         {form.formState.errors.paymentMethod?.message ? (
                           <p className="text-sm text-red-600">
@@ -441,7 +434,7 @@ export default function BuyPage() {
                       <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
                         <p className="font-semibold">XRP Payment</p>
                         <p>
-                          Send {premium} XRP to the demo address.
+                          Send {premium} XRP to the pool.
                         </p>
                       </div>
                       {/* <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
@@ -478,18 +471,13 @@ export default function BuyPage() {
                         type="button"
                         className="rounded-full"
                         onClick={handleVerifyPayment}
-                        disabled={isVerifying}
+                        disabled={isVerifying || isActive}
                       >
-                        {isVerifying ? "Verifying..." : "Verify Payment"}
-                      </Button>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => setVerificationState("error")}
-                      >
-                        Simulate Error
+                        {isVerifying
+                          ? "Verifying..."
+                          : isActive
+                            ? "Verified"
+                            : "Verify Payment"}
                       </Button>
 
                       {/* Final submit */}
@@ -497,7 +485,7 @@ export default function BuyPage() {
                         type="submit"
                         variant="secondary"
                         className="rounded-full"
-                        disabled={isSubmitting}
+                        disabled={!isActive || isSubmitting}
                       >
                         {isSubmitting ? "Submitting..." : "Submit & Continue"}
                       </Button>

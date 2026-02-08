@@ -42,16 +42,16 @@ export function CoverageCapsule() {
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-[#e2e6ee] bg-white p-4">
             <p className="text-xs text-[#7a8493]">Premium</p>
-            <p className="mt-2 text-lg">0.06 ETH</p>
+            <p className="mt-2 text-lg">5 XRP</p>
           </div>
           <div className="rounded-2xl border border-[#e2e6ee] bg-white p-4">
             <p className="text-xs text-[#7a8493]">Payout</p>
-            <p className="mt-2 text-lg">0.45 ETH</p>
+            <p className="mt-2 text-lg">75 XRP</p>
           </div>
         </div>
         <div className="flex items-center justify-between rounded-2xl border border-[#e2e6ee] bg-white p-4">
           <div>
-            <p className="text-xs text-[#7a8493]">Oracle status</p>
+            <p className="text-xs text-[#7a8493]">Flight status</p>
             <p className="mt-2 text-sm text-[#5a6472]">
               Awaiting departure
             </p>

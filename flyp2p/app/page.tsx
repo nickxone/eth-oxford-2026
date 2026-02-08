@@ -32,7 +32,7 @@ export default function Home() {
             </h1>
             <p className="max-w-xl text-base leading-relaxed text-[#3f4a59] sm:text-lg">
               FlyP2P is a minimalist, future-forward insurance layer on Flare. Pool
-              capital with travelers, lock coverage on-chain, and trigger payouts
+              capital with travelers, lock coverage on-chain, and trigger XRP payouts
               automatically from flight status data.
             </p>
             <div className="flex flex-wrap gap-4">
