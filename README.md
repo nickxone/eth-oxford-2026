@@ -1,6 +1,29 @@
-## Backend Instructions
+# Project Overview
 
-(`backend` folder)
+FlareSure is a decentralized insurance dApp built on the Flare Network that solves the transparency and delay issues in traditional travel insurance. By leveraging the Flare Data Connector (FDC), we provide proof for the data originating from our externally hosted flight status API. Users purchase policies on Flare using fXRP, and as soon as a flight delay is verified by the Flare Oracle, the smart contract triggers an automated redemption process that sends native XRP back to the user’s wallet.
+
+### Flare-Specific Integrations & Technical Stack
+
+1. Flare Data Connector (FDC) — Web2Json Attestation
+   We use the FDC Web2Json type to trustlessly fetch real-world flight data from airport APIs.
+   The Workflow: When a user checks their status, the dApp requests a Web2Json attestation for a specific flight ID.
+   On-Chain Verification: Our InsurancePolicy smart contract verifies the Merkle proof provided by the Flare Attestation Providers. If the delayMinutes field exceeds the policy threshold, the payout is triggered.
+2. XRP to fXRP Cross-Chain Bridge
+   To make the dApp accessible to the XRP community, we implemented a custom bridge relayer:
+   Inbound: Users can fund their insurance premiums directly using their XRP secret key. Our bridge service handles the Collateral Reservation and Minting process on Flare, converting their XRP into fXRP deposited directly into the Insurance Pool.
+   Outbound: Unlike other dApps that pay out in tokens, FlareSure uses the F-Asset redemption logic. Upon a valid claim, the InsurancePool contract initiates a redemption.
+3. Flare Smart Contracts (Solidity)
+   InsurancePool.sol: A liquidity-provider vault that manages fXRP. It handles automated approve and redeem calls to the Flare Asset Manager contract.
+   InsurancePolicy.sol: The core logic engine that stores flight metadata and interfaces with the IFdcVerifier to settle or expire policies based on oracle data.
+
+### How it Works
+
+Quote & Bridge: The user enters their flight details and XRP secret. XRP is bridged to fXRP on Flare and locked in the InsurancePool.
+Verify: The user clicks "Activate," and the InsurancePolicy contract is notified of the locked liquidity.
+Monitor: The dApp tracks the flight. If a delay occurs, the user (or a bot) provides the FDC proof.
+Payout: The Flare contract verifies the proof, and issues the refund
+
+## Backend Instructions
 
 `cd` into the `backend` folder, then run the following command:
 
@@ -30,7 +53,7 @@ npx hardhat run scripts/VerifyFlightStatus.ts --network coston2
 
 ## Mock API Instructions
 
-(`mock-api` folder)
+`cd` into `mock-api` folder, go through the following steps
 
 Environment setup:
 
@@ -54,19 +77,9 @@ uvicorn main:app --reload --port 8000
 ngrok http 8000
 ```
 
-### Smart accounts process
-
-```
-npx hardhat run scripts/deployPool.ts --network coston2
-✅ InsurancePool deployed to: 0xa828384C083F8Cbb398125e9BbC16eCef568de8e
-🔗 Token tracked: fXRP at 0x0b6A3645c240605887a5532109323A3E12273dc7
-
-npx hardhat run scripts/BridgeAndBet.ts --network coston2
-```
-
-# Custom
-
 ### Run the server:
+
+Supports minting(XRP to fXRP) as well redemption(fXRP to XRP)
 
 ```
 cd backend/engine

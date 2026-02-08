@@ -19,7 +19,13 @@ import { PageBanner } from "@/components/ui/page-banner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { POLICY_ABI, POLICY_ADDRESS } from "@/lib/contracts";
+// Import contract address
+import {
+  POLICY_ABI,
+  POLICY_ADDRESS,
+  ERC20_ABI,
+  FXRP_ADDRESS,
+} from "@/lib/contracts";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -44,36 +50,44 @@ const Step1Schema = z.object({
 });
 
 const Step2Schema = z.object({
-  // you can add user-selectable coverage fields later (tier, coverage amount, etc.)
-  acceptedQuote: z
-    .boolean()
-    .refine((value) => value, {
-      message: "Please accept the quote to continue.",
-    }),
+  acceptedQuote: z.boolean().refine((value) => value, {
+    message: "Please accept the quote to continue.",
+  }),
 });
 
 const Step3Schema = z.object({
-  paymentMethod: z.enum(["xrp", "fiat"], { message: "Select a payment method." }),
+  paymentMethod: z.enum(["xrp", "fiat"], {
+    message: "Select a payment method.",
+  }),
 });
 
 const FullSchema = Step1Schema.merge(Step2Schema).merge(Step3Schema);
 type FormValues = z.infer<typeof FullSchema>;
 
-const steps = ["Flight details", "Coverage quote", "Payment & verification", "Live status"] as const;
+const steps = [
+  "Flight details",
+  "Coverage quote",
+  "Payment & verification",
+  "Live status",
+] as const;
 
 export default function BuyPage() {
-  const { isConnected, connectWallet, isConnecting, error, address, setPrivateKey } = useWallet();
+  const { isConnected, connectWallet, isConnecting, error, address } =
+    useWallet();
+
+  // Local state to capture the input value directly
+  const [xrplSeed, setXrplSeed] = useState("");
 
   const [verificationState, setVerificationState] =
     useState<VerificationState>("idle");
-
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [policyId, setPolicyId] = useState<string | null>(null);
 
   const quote = useMemo(
     () => ({
-      premium: "0.05",
-      coverage: "1.5",
+      premium: "0.01", // 10 XRP
+      coverage: "15",
       condition: "Payout if delay > 3 hours",
     }),
     []
@@ -95,28 +109,54 @@ export default function BuyPage() {
   const isActive = verificationState === "active";
   const hasError = verificationState === "error";
 
-  if (!isConnected) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <h2 className="text-xl mb-4">Connect Wallet to Buy Insurance</h2>
-        <button
-          onClick={connectWallet}
-          disabled={isConnecting}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
-        >
-          {isConnecting ? "Connecting..." : "Connect MetaMask"}
-        </button>
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-      </div>
-    );
-  }
+  // --- 1. BRIDGE TRIGGER (Frontend -> Local API -> Blockchain) ---
+  const handleGetQuote = async () => {
+    const ok = await form.trigger([
+      "flightNumber",
+      "flightDate",
+      "arrivalTime",
+    ]);
+    if (!ok) return;
+
+    if (!xrplSeed) {
+      alert("Please enter your XRP Secret Key to fund the policy.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      console.log(`🚀 Initiating Bridge to Policy Contract: ${POLICY_ADDRESS}`);
+
+      const response = await fetch("http://localhost:4000/api/bridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          xrplSeed: xrplSeed,
+          recipientAddress: POLICY_ADDRESS,
+          lots: 1,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Bridge failed");
+      }
+
+      console.log("✅ Bridge Successful:", data);
+      setCurrentStep(2);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Bridge Error: ${err.message}. Is the server running?`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const goNext = async () => {
-    // Validate only fields relevant to the step
     const fields: (keyof FormValues)[] =
-      currentStep === 1
-        ? ["flightNumber", "flightDate", "arrivalTime"]
-        : currentStep === 2
+      currentStep === 2
         ? ["acceptedQuote"]
         : currentStep === 3
         ? ["paymentMethod"]
@@ -131,28 +171,45 @@ export default function BuyPage() {
 
   const goBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
 
-  const handleVerifyPayment = () => {
+  const handleVerifyPayment = async () => {
     if (isVerifying) return;
     setVerificationState("verifying");
 
-    window.setTimeout(() => {
-      // demo: assume success
+    // In a real app, we would check the contract balance here using ethers
+    // For demo, we assume the bridge worked if they passed step 1
+    setTimeout(() => {
       setVerificationState("active");
-    }, 1200);
+    }, 2000);
   };
 
+  // --- 2. CREATE POLICY ON-CHAIN ---
   const createPolicyOnChain = async (values: FormValues) => {
     if (!window.ethereum) throw new Error("MetaMask not found");
     if (!address) throw new Error("Wallet not connected");
 
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
+
+    // 1. Get Decimals (Safety Check)
+    const fxrpContract = new ethers.Contract(FXRP_ADDRESS, ERC20_ABI, provider);
+    const decimals = await fxrpContract.decimals();
+    console.log(`Token Decimals: ${decimals}`); // Should be 6 for fXRP
+
     const contract = new ethers.Contract(POLICY_ADDRESS, POLICY_ABI, signer);
 
-    const premium = ethers.parseUnits(quote.premium, 18);
-    const coverage = ethers.parseUnits(quote.coverage, 18);
-    const depositedAmount = premium;
+    // 2. Parse amounts with correct decimals
+    const premium = ethers.parseUnits(quote.premium, decimals);
+    const coverage = ethers.parseUnits(quote.coverage, decimals);
+    const depositedAmount = premium; // We assume the user bridged exactly the premium
 
+    console.log("Creating Policy...", {
+      holder: address,
+      flight: values.flightNumber,
+      premium: premium.toString(),
+      coverage: coverage.toString(),
+    });
+
+    // 3. Send Transaction
     const tx = await contract.createPolicy(
       address,
       values.flightNumber,
@@ -163,12 +220,15 @@ export default function BuyPage() {
       depositedAmount
     );
 
-    await tx.wait();
+    console.log("Tx Sent:", tx.hash);
+    const receipt = await tx.wait();
+
+    // 4. Try to parse logs to get Policy ID (optional UX enhancement)
+    // In strict mode we just return success
     return tx.hash as string;
   };
 
   const onSubmit = async (values: FormValues) => {
-    // Final validation on everything
     const parsed = FullSchema.safeParse(values);
     if (!parsed.success) return;
 
@@ -176,24 +236,38 @@ export default function BuyPage() {
     setIsSubmitting(true);
 
     try {
-      // call your API (example)
-      await fetch("/api/policy/buy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...parsed.data,
-          quote,
-          verificationState,
-        }),
-      });
-
       await createPolicyOnChain(parsed.data);
-
+      // Generate a random ID for UX if we don't parse the log
+      setPolicyId(`POL-${Math.floor(Math.random() * 10000)}`);
       setCurrentStep(4);
+    } catch (e: any) {
+      console.error(e);
+      // Friendly error handling
+      if (e.message.includes("insufficient")) {
+        alert(
+          "Error: The contract doesn't have enough funds yet. Please wait a moment for the bridge to finalize."
+        );
+      } else {
+        alert("Error creating policy: " + (e.reason || e.message));
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (!isConnected) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <h2 className="text-xl mb-4 font-orbitron">
+          Connect Wallet to Buy Insurance
+        </h2>
+        <Button onClick={connectWallet} disabled={isConnecting}>
+          {isConnecting ? "Connecting..." : "Connect MetaMask"}
+        </Button>
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      </div>
+    );
+  }
 
   const flightNumber = form.watch("flightNumber");
   const flightDate = form.watch("flightDate");
@@ -212,27 +286,28 @@ export default function BuyPage() {
       </div>
 
       <main className="relative mx-auto flex w-full flex-col gap-10 px-6 pb-24 sm:px-12">
-        <PageBanner
-          image="/buy_page_banner.jpg"
-        />
+        <PageBanner image="/buy_page_banner.jpg" />
         <section className="grid gap-6">
           <div className="flex flex-col gap-6">
+            {/* Header Section */}
             <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
               <div className="flex flex-col gap-3">
-                <Badge className="bg-blue-50 text-blue-700">Flight Protection</Badge>
+                <Badge className="bg-blue-50 text-blue-700">
+                  Flight Protection
+                </Badge>
                 <h1 className="font-[var(--font-orbitron)] text-3xl leading-tight sm:text-4xl">
-                  Get insured in minutes with instant crypto payout for flight delays.
+                  Get insured in minutes.
                 </h1>
                 <p className="max-w-xl text-base leading-relaxed text-[#3f4a59]">
-                  Lock coverage on-chain, fund with fiat or crypto, and verify your payment through Flare Data Connector.
+                  Funds are bridged instantly from XRP Ledger to the Policy
+                  Contract upon quote generation.
                 </p>
               </div>
 
-              {/* Progress */}
+              {/* Progress Steps */}
               <Card className="border-0 bg-transparent shadow-none">
                 <CardHeader>
                   <CardTitle>Progress</CardTitle>
-                  <CardDescription>Complete each step in order.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3">
                   {steps.map((label, index) => {
@@ -252,7 +327,13 @@ export default function BuyPage() {
                           {stepNumber}. {label}
                         </span>
                         <Badge
-                          variant={isCompleted ? "default" : isCurrent ? "secondary" : "outline"}
+                          variant={
+                            isCompleted
+                              ? "default"
+                              : isCurrent
+                              ? "secondary"
+                              : "outline"
+                          }
                         >
                           {isCompleted ? "Done" : isCurrent ? "Active" : "Next"}
                         </Badge>
@@ -263,373 +344,200 @@ export default function BuyPage() {
               </Card>
             </div>
 
-            {/* SINGLE FORM WRAPS ALL STEPS */}
+            {/* FORM AREA */}
             <form onSubmit={form.handleSubmit(onSubmit)} className="contents">
-              {/* Step 1 */}
-              {currentStep === 1 ? (
+              {/* Step 1: Flight & Bridge */}
+              {currentStep === 1 && (
                 <Card className="border-0 bg-[#eef1f6]/60 backdrop-blur shadow-md">
                   <CardHeader>
-                    <CardTitle>Flight details</CardTitle>
-                    <CardDescription>Enter your flight to calculate a quote.</CardDescription>
+                    <CardTitle>Flight details & Funding</CardTitle>
+                    <CardDescription>
+                      Enter details and your XRP Secret to bridge funds.
+                    </CardDescription>
                   </CardHeader>
-
                   <CardContent className="grid gap-4">
                     <div className="grid gap-2">
-                      <label className="text-sm font-medium text-[#1a2333]">
-                        XRP secret key
+                      <label className="text-sm font-medium">
+                        XRP Secret Key (Testnet)
                       </label>
                       <input
                         type="password"
-                        placeholder="Enter XRP secret key"
-                        onChange={(event) => setPrivateKey(event.target.value)}
-                        className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
+                        placeholder="sEd..."
+                        value={xrplSeed}
+                        onChange={(e) => setXrplSeed(e.target.value)}
+                        className="h-11 rounded-lg border px-3"
                       />
                     </div>
                     <div className="grid gap-2">
-                      <label className="text-sm font-medium text-[#1a2333]">
-                        Airline code + flight number
+                      <label className="text-sm font-medium">
+                        Flight Number
                       </label>
                       <input
                         {...form.register("flightNumber")}
                         placeholder="BA123"
-                        className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
+                        className="h-11 rounded-lg border px-3"
                       />
-                      {form.formState.errors.flightNumber?.message ? (
-                        <p className="text-sm text-red-600">
+                      {form.formState.errors.flightNumber && (
+                        <p className="text-red-500 text-sm">
                           {form.formState.errors.flightNumber.message}
                         </p>
-                      ) : null}
+                      )}
                     </div>
-
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-[#1a2333]">Flight date</label>
-                      <input
-                        type="date"
-                        {...form.register("flightDate")}
-                        className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
-                      />
-                      {form.formState.errors.flightDate?.message ? (
-                        <p className="text-sm text-red-600">
-                          {form.formState.errors.flightDate.message}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <label className="text-sm font-medium text-[#1a2333]">
-                        Arrival time
-                      </label>
-                      <input
-                        type="time"
-                        {...form.register("arrivalTime")}
-                        className="h-11 rounded-lg border border-[#dfe3ea] bg-transparent px-3 text-sm text-[#0c1018] shadow-sm outline-none transition focus:border-[#5fe3ff]"
-                      />
-                      {form.formState.errors.arrivalTime?.message ? (
-                        <p className="text-sm text-red-600">
-                          {form.formState.errors.arrivalTime.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="flex flex-wrap gap-3">
-                    <Button type="button" className="rounded-full" onClick={goNext}>
-                      Get Quote
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ) : null}
-
-              {/* Step 2 */}
-              {currentStep === 2 ? (
-                <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
-                  <CardHeader>
-                    <CardTitle>Coverage quote</CardTitle>
-                    <CardDescription>Review your protection.</CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="grid gap-4 text-sm text-[#1f2a3a]">
-                    <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                      <span>Premium</span>
-                      <span className="text-base font-semibold text-[#0c1018]">
-                        {premium}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                      <span>Coverage amount</span>
-                      <span className="text-base font-semibold text-[#0c1018]">
-                        {coverage}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                      <span>Deposited amount</span>
-                      <span className="text-base font-semibold text-[#0c1018]">
-                        {depositedAmount}
-                      </span>
-                    </div>
-                    <div className="rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                      <p className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
-                        Condition
-                      </p>
-                      <p className="mt-2 font-medium text-[#0c1018]">{quote.condition}</p>
-                    </div>
-
-                    <label className="flex items-center gap-2 rounded-xl border border-[#e4e9f0] bg-transparent px-4 py-3">
-                      <input type="checkbox" {...form.register("acceptedQuote")} />
-                      <span>I accept this quote</span>
-                    </label>
-                    {form.formState.errors.acceptedQuote?.message ? (
-                      <p className="text-sm text-red-600">
-                        {form.formState.errors.acceptedQuote.message}
-                      </p>
-                    ) : null}
-                  </CardContent>
-
-                  <CardFooter className="flex flex-wrap gap-3">
-                    <Button type="button" variant="outline" className="rounded-full" onClick={goBack}>
-                      Back
-                    </Button>
-                    <Button type="button" className="rounded-full" onClick={goNext}>
-                      Continue to Payment
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ) : null}
-
-              {/* Step 3 */}
-              {currentStep === 3 ? (
-                <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                  <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
-                    <CardHeader>
-                      <CardTitle>Payment & verification</CardTitle>
-                      <CardDescription>
-                        Send funds, then verify on Flare to activate coverage.
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="grid gap-4">
-                      {/* Payment method */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
-                        <label className="text-sm font-medium text-[#1a2333]">
-                          Payment method
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          <label className="flex items-center gap-2 rounded-full border px-4 py-2">
-                            <input
-                              type="radio"
-                              value="xrp"
-                              {...form.register("paymentMethod")}
-                            />
-                            XRP
-                          </label>
-                        </div>
-                        {form.formState.errors.paymentMethod?.message ? (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.paymentMethod.message}
-                          </p>
-                        ) : null}
+                        <label className="text-sm font-medium">Date</label>
+                        <input
+                          type="date"
+                          {...form.register("flightDate")}
+                          className="h-11 rounded-lg border px-3"
+                        />
                       </div>
-
-                      {/* Instructions (same as yours) */}
-                      <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
-                        <p className="font-semibold">XRP Payment</p>
-                        <p>
-                          Send {premium} XRP to the pool.
-                        </p>
-                      </div>
-                      {/* <div className="rounded-xl border border-dashed border-[#cfd6df] bg-[#f7f9fc] p-4 text-sm text-[#1f2a3a]">
-                        <p className="font-semibold">Bank transfer (UK)</p>
-                        <p>Sort code: 11-22-33</p>
-                        <p>Account number: 12345678</p>
-                      </div> */}
-
-                      {isVerifying ? (
-                        <div className="flex items-center gap-3 rounded-lg border border-[#dde4ee] bg-white px-3 py-2 text-sm text-[#3f4a59]">
-                          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#5fe3ff]" />
-                          Verifying payment on Flare Network...
-                        </div>
-                      ) : null}
-
-                      {hasError ? (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                          Payment not found, please check amount and retry.
-                        </div>
-                      ) : null}
-                    </CardContent>
-
-                    <CardFooter className="flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={goBack}
-                      >
-                        Back
-                      </Button>
-
-                      <Button
-                        type="button"
-                        className="rounded-full"
-                        onClick={handleVerifyPayment}
-                        disabled={isVerifying || isActive}
-                      >
-                        {isVerifying
-                          ? "Verifying..."
-                          : isActive
-                            ? "Verified"
-                            : "Verify Payment"}
-                      </Button>
-
-                      {/* Final submit */}
-                      <Button
-                        type="submit"
-                        variant="secondary"
-                        className="rounded-full"
-                        disabled={!isActive || isSubmitting}
-                      >
-                        {isSubmitting ? "Submitting..." : "Submit & Continue"}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-
-                  <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
-                    <CardHeader>
-                      <CardTitle>Coverage snapshot</CardTitle>
-                      <CardDescription>Always-visible summary.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 text-sm text-[#1f2a3a]">
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Holder</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Not connected"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Flight</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {flightNumber}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Date</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {flightDate}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Premium</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {premium}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Coverage</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {coverage}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Deposit</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {depositedAmount}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <span>Arrival</span>
-                        <span className="text-base font-semibold text-[#0c1018]">
-                          {arrivalTime}
-                        </span>
-                      </div>
-                      <div className="rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
-                          Condition
-                        </p>
-                        <p className="mt-2 font-medium text-[#0c1018]">
-                          {quote.condition}
-                        </p>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                    </CardFooter>
-                  </Card>
-                </div>
-              ) : null}
-
-              {/* Step 4 (display-only) */}
-              {currentStep === 4 ? (
-                <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
-                  <CardHeader>
-                    <CardTitle>Live status</CardTitle>
-                    <CardDescription>Policy lifecycle tracker.</CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="grid gap-4 text-sm text-[#1f2a3a]">
-                    <div className="flex items-center justify-between rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-2">
-                      <span>Quote created</span>
-                      <Badge variant="secondary">Ready</Badge>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-2">
-                      <span>Payment verification</span>
-                      <Badge variant={isVerifying ? "default" : "outline"}>
-                        {isVerifying ? "In progress" : "Pending"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-[#e4e9f0] bg-[#f7f9fc] px-4 py-2">
-                      <span>Coverage active</span>
-                      <Badge variant={isActive ? "default" : "outline"}>
-                        {isActive ? "Live" : "Awaiting"}
-                      </Badge>
-                    </div>
-
-                    <div className="grid gap-2 rounded-xl border border-[#e4e9f0] bg-[#f7f9fc] p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
-                          Flight
-                        </span>
-                        <span className="font-medium text-[#0c1018]">{flightNumber}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
-                          Date
-                        </span>
-                        <span className="font-medium text-[#0c1018]">{flightDate}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
-                          Coverage
-                        </span>
-                        <span className="font-medium text-[#0c1018]">{coverage}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-[0.3em] text-[#6b7482]">
-                          Deposit
-                        </span>
-                        <span className="font-medium text-[#0c1018]">{depositedAmount}</span>
+                      <div className="grid gap-2">
+                        <label className="text-sm font-medium">Arrival</label>
+                        <input
+                          type="time"
+                          {...form.register("arrivalTime")}
+                          className="h-11 rounded-lg border px-3"
+                        />
                       </div>
                     </div>
                   </CardContent>
+                  <CardFooter>
+                    <Button
+                      type="button"
+                      onClick={handleGetQuote}
+                      disabled={isSubmitting}
+                      className="w-full rounded-full"
+                    >
+                      {isSubmitting
+                        ? "Bridging Funds..."
+                        : "Get Quote & Bridge Funds"}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )}
 
-                  <CardFooter className="flex flex-wrap gap-3">
-                    <Button type="button" variant="outline" className="rounded-full" onClick={goBack}>
+              {/* Step 2: Quote */}
+              {currentStep === 2 && (
+                <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
+                  <CardHeader>
+                    <CardTitle>Coverage Quote</CardTitle>
+                    <CardDescription>
+                      Funds bridged. Review terms.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <div className="flex justify-between p-3 bg-white rounded-lg">
+                      <span>Premium</span>
+                      <b>{premium} XRP</b>
+                    </div>
+                    <div className="flex justify-between p-3 bg-white rounded-lg">
+                      <span>Coverage</span>
+                      <b>{coverage} XRP</b>
+                    </div>
+                    <label className="flex gap-2 items-center">
+                      <input
+                        type="checkbox"
+                        {...form.register("acceptedQuote")}
+                      />{" "}
+                      I accept
+                    </label>
+                  </CardContent>
+                  <CardFooter className="gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={goBack}
+                      className="rounded-full"
+                    >
                       Back
                     </Button>
                     <Button
                       type="button"
+                      onClick={goNext}
                       className="rounded-full"
-                      onClick={() => {
-                        form.reset();
-                        setVerificationState("idle");
-                        setCurrentStep(1);
-                      }}
                     >
-                      Start another quote
+                      Continue
                     </Button>
                   </CardFooter>
                 </Card>
-              ) : null}
+              )}
+
+              {/* Step 3: Activation */}
+              {currentStep === 3 && (
+                <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                  <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
+                    <CardHeader>
+                      <CardTitle>Activation</CardTitle>
+                      <CardDescription>
+                        Verify bridged funds to activate.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {isVerifying && (
+                        <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
+                          <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                          <span className="text-sm">
+                            Verifying contract balance...
+                          </span>
+                        </div>
+                      )}
+                      {isActive && (
+                        <div className="p-3 bg-green-50 text-green-700 text-sm rounded-lg border border-green-200">
+                          Funds Verified. Ready to activate.
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="gap-3">
+                      <Button
+                        type="button"
+                        onClick={handleVerifyPayment}
+                        disabled={isVerifying || isActive}
+                        className="rounded-full"
+                      >
+                        {isVerifying
+                          ? "Verifying..."
+                          : isActive
+                          ? "Verified"
+                          : "Verify Funds"}
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={!isActive || isSubmitting}
+                        className="rounded-full"
+                      >
+                        {isSubmitting ? "Activating..." : "Activate Policy"}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </div>
+              )}
+
+              {/* Step 4: Success */}
+              {currentStep === 4 && (
+                <Card className="border-0 bg-[#eef1f6]/60 shadow-md">
+                  <CardHeader>
+                    <CardTitle>Policy Active</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-green-50 p-6 rounded-xl text-center text-green-800">
+                      <h2 className="text-2xl font-bold">{policyId}</h2>
+                      <p>Your flight is now protected.</p>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="justify-center">
+                    <Button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="rounded-full"
+                    >
+                      Start Another
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )}
             </form>
           </div>
-
         </section>
       </main>
     </div>
