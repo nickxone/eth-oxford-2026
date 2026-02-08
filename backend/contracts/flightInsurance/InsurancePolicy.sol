@@ -65,6 +65,7 @@ contract InsurancePolicy {
     }
 
     function createPolicy(
+        address holder,
         string memory flightRef,
         string memory travelDate,
         string memory predictedArrivalTime,
@@ -72,6 +73,7 @@ contract InsurancePolicy {
         uint256 coverage,
         uint256 depositedAmount
     ) external {
+        require(holder != address(0), "Holder address required");
         require(bytes(flightRef).length > 0, "Flight ref required");
         require(premium > 0, "Premium required");
         require(coverage > 0, "Coverage required");
@@ -82,7 +84,7 @@ contract InsurancePolicy {
         pool.lockCoverage(registeredPolicies.length, coverage);
 
         Policy memory newPolicy = Policy({
-            holder: msg.sender,
+            holder: holder,
             flightRef: flightRef,
             travelDate: travelDate,
             predictedArrivalTime: predictedArrivalTime,
