@@ -56,6 +56,23 @@ export async function readAvailableStakeOf(address: string) {
   return ethers.formatUnits(availableStake, Number(decimals));
 }
 
+export async function readUserSharePercentage(address: string) {
+  const provider = new ethers.JsonRpcProvider(COSTON2_RPC);
+  const pool = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
+
+  const [userShares, totalShares] = await Promise.all([
+    pool.sharesOf(address),
+    pool.totalSharesSupply(),
+  ]);
+
+  if (totalShares === BigInt(0)) {
+    return "0.00";
+  }
+
+  const scaled = (userShares * BigInt(10000)) / totalShares;
+  return (Number(scaled) / 100).toFixed(2);
+}
+
 export async function readPoolContracts(address?: string): Promise<PoolReadout> {
   const provider = new ethers.JsonRpcProvider(COSTON2_RPC);
   const network = await provider.getNetwork();

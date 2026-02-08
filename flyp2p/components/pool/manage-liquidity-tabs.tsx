@@ -17,17 +17,16 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useWallet } from "@/context/WalletContext";
-import { approveFxrp, depositToPool, withdrawFromPool } from "@/lib/helpers/writes";
+import { withdrawFxrpAmount } from "@/lib/helpers/pool";
+import { approveFxrp, depositToPool } from "@/lib/helpers/writes";
 
 type ManageLiquidityTabsProps = {
-  lockedFunds: number;
   walletBalance: string;
   poolBalance: string;
   defaultAsset?: string;
 };
 
 export function ManageLiquidityTabs({
-  lockedFunds,
   walletBalance,
   poolBalance,
   defaultAsset = "FXRP",
@@ -104,7 +103,7 @@ export function ManageLiquidityTabs({
     setWithdrawError(null);
     setWithdrawSuccess(null);
     try {
-      await withdrawFromPool(withdrawAmount);
+      await withdrawFxrpAmount(withdrawAmount);
       setWithdrawAmount("");
       setWithdrawSuccess("Withdrawal confirmed.");
     } catch (err: any) {
@@ -227,29 +226,23 @@ export function ManageLiquidityTabs({
                 </Button>
               </div>
             </div>
-
-            {lockedFunds > 0 ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Cannot withdraw locked funds (${lockedFunds} currently underwriting Flight BA123).
-              </div>
-            ) : null}
           </CardContent>
           <CardFooter>
             <Button
               className="rounded-full"
-              disabled={lockedFunds > 0 || !canWithdraw || isWithdrawing}
+              disabled={!canWithdraw || isWithdrawing}
               onClick={handleWithdraw}
             >
               {isWithdrawing ? "Withdrawing..." : "Withdraw"}
             </Button>
           </CardFooter>
           {withdrawError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <div className="mx-4 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
               {withdrawError}
             </div>
           ) : null}
           {withdrawSuccess ? (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            <div className="mx-4 mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
               {withdrawSuccess}
             </div>
           ) : null}

@@ -294,7 +294,6 @@ export default function DashboardPage() {
                   <TableHeader className="bg-muted sticky top-0 z-10">
                     <TableRow>
                       <TableHead>Flight</TableHead>
-                      <TableHead>Policy</TableHead>
                       <TableHead>Coverage</TableHead>
                       <TableHead>Trigger</TableHead>
                       <TableHead>Arrival</TableHead>
@@ -316,12 +315,6 @@ export default function DashboardPage() {
                             <p className="font-semibold">{policy.flightNumber}</p>
                             <p className="text-xs text-[#6b7482]">
                               {policy.flightDate}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <p className="font-medium">{policy.id}</p>
-                            <p className="text-xs text-[#6b7482]">
-                              Token {policy.nftId}
                             </p>
                           </TableCell>
                           <TableCell>
@@ -427,7 +420,7 @@ export default function DashboardPage() {
                     {!filteredPolicies.length ? (
                       <TableRow>
                         <TableCell
-                          colSpan={9}
+                          colSpan={8}
                           className="h-24 text-center text-sm text-[#6b7482]"
                         >
                           No matching policies found.
