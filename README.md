@@ -23,6 +23,18 @@ Verify: The user clicks "Activate," and the InsurancePolicy contract is notif
 Monitor: The dApp tracks the flight. If a delay occurs, the user (or a bot) provides the FDC proof.
 Payout: The Flare contract verifies the proof, and issues the refund
 
+
+## Flight Insurance Security Measures
+
+These are the main safety controls in the `InsurancePool` and `InsurancePolicy` contracts:
+
+- Access control: only the pool `owner` can update ownership and set the policy contract; only the policy contract can lock/release coverage or execute payouts.
+- Liquidity protection: withdrawals are blocked if they would breach locked coverage; available liquidity is enforced at withdraw time.
+- Coverage accounting: each policy locks coverage once; release/payout clears the lock and updates totals to prevent double‑spend of coverage.
+- Proof verification: policy resolution uses FDC Web2Json verification (or a configured custom verifier) before deciding payout vs expiry.
+- Flight reference binding: the proof’s flight reference must match the policy’s recorded flight ref to prevent cross‑claiming.
+- Sanity checks: non‑zero addresses and amounts are required for critical operations (pool token, owner, policy contract, payout recipient).
+
 ## Dev Instructions
 
 `cd` into the `backend` folder, then run the following command:
