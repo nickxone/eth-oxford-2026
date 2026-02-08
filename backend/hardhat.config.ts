@@ -1,17 +1,11 @@
 import { HardhatUserConfig } from "hardhat/config";
-import { task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
+import "@tenderly/hardhat-tenderly";
 require("@nomiclabs/hardhat-truffle5");
 // import { vars } from "hardhat/config";
 const { vars } = require("hardhat/config");
-
 require("dotenv").config();
-
-const ENABLE_TENDERLY = process.env.ENABLE_TENDERLY === "true";
-if (ENABLE_TENDERLY) {
-    require("@tenderly/hardhat-tenderly");
-}
 
 // Load environment variables
 const PRIVATE_KEY = process.env.PRIVATE_KEY ?? "";
@@ -36,14 +30,6 @@ const TENDERLY_USERNAME = process.env.TENDERLY_USERNAME ?? "";
 const TENDERLY_PROJECT_SLUG = process.env.TENDERLY_PROJECT_SLUG ?? "";
 
 const XRPLEVM_EXPLORER_URL_TESTNET = process.env.XRPLEVM_EXPLORER_URL_TESTNET ?? "";
-
-task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
-    const accounts = await hre.ethers.getSigners();
-
-    for (const account of accounts) {
-        console.log(account.address);
-    }
-});
 
 const config: HardhatUserConfig = {
     solidity: {
@@ -183,7 +169,11 @@ const config: HardhatUserConfig = {
     },
     typechain: {
         target: "truffle-v5",
-    }
+    },
+    tenderly: {
+        username: TENDERLY_USERNAME,
+        project: TENDERLY_PROJECT_SLUG,
+    },
 };
 
 export default config;
