@@ -40,26 +40,17 @@ async function main() {
     await (await pool.deposit(depositAmount)).wait();
     console.log("Deposited liquidity:", depositAmount.toString());
 
-    // Create and accept a sample policy
-    const now = Math.floor(Date.now() / 1000);
-    const startTs = now + 60;
-    const endTs = now + 3600;
+    // Create a sample policy
 
+    await (await token.transfer(policyAddr, premium)).wait();
     const createTx = await policy.createPolicy(
         "AA1234-2026-02-10",
-        startTs,
-        endTs,
-        60,
         premium,
-        coverage
+        coverage,
+        premium
     );
     await createTx.wait();
     console.log("Policy created");
-
-    await (await token.approve(policyAddr, premium)).wait();
-    const acceptTx = await policy.acceptPolicy(0);
-    await acceptTx.wait();
-    console.log("Policy accepted");
 
     const locked = await pool.lockedCoverage(0);
     console.log("Locked coverage:", locked.toString());
@@ -73,7 +64,7 @@ async function main() {
         if (amount <= available) {
             try {
                 await pool.withdraw.staticCall(withdrawShares);
-                await (await pool.withdraw(withdrawShares, {gasLimit: 10000000})).wait();
+                await (await pool.withdraw(withdrawShares/*, {gasLimit: 10000000}*/)).wait();
                 console.log("Withdrew shares:", withdrawShares.toString());
             } catch (err) {
                 console.log("Skip withdraw: withdrawal reverted", err);

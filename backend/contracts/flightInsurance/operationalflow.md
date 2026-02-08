@@ -18,42 +18,32 @@ This document describes how `InsurancePolicy` and `InsurancePool` interact for t
 4. Liquidity providers fund the pool using `InsurancePool.deposit(amount)`.
 
 ## Policy Creation
-1. Policyholder calls `InsurancePolicy.createPolicy(...)` with:
+1. Policyholder transfers FXRP premium to `InsurancePolicy`.
+2. Policyholder calls `InsurancePolicy.createPolicy(...)` with:
    - `flightRef`
-   - `startTimestamp` / `expirationTimestamp`
-   - `delayThresholdMins`
    - `premium` / `coverage`
-2. Policy is stored with status `Unclaimed`.
-
-## Policy Acceptance
-1. Policyholder approves `InsurancePolicy` to transfer `premium` FXRP.
-2. Anyone can call `InsurancePolicy.acceptPolicy(id)`.
-3. If called after `startTimestamp`, policy is `Retired` and premium is not transferred.
-4. Otherwise:
-   - `InsurancePolicy` calls `InsurancePool.lockCoverage(id, coverage)`.
-   - `InsurancePolicy` transfers `premium` FXRP to the pool.
-   - Policy status becomes `Active`.
+   - `depositedAmount` (must match `premium`)
+3. Policy is stored with status `Active`, the premium is forwarded to the pool, and coverage is locked.
 
 ## Claim (On-Chain Resolution)
 1. Policyholder (or anyone) calls `InsurancePolicy.resolvePolicy(id, proof)`.
 2. Contract verifies the FDC Web2Json proof and decodes the flight-delay DTO.
-3. If delay >= threshold and flightRef matches, the policy settles:
+3. If the flight is delayed and flightRef matches, the policy settles:
    - `InsurancePolicy` calls `InsurancePool.payoutPolicy(id, holder)`.
    - Policy status becomes `Settled`.
 
-## Expiry (No Valid Claim)
-1. After `expirationTimestamp`, anyone can call `InsurancePolicy.expirePolicy(id)`.
+## Expiry (Flight Not Delayed)
+1. If `resolvePolicy` is called and the flight is not delayed, the policy expires.
 2. Contract releases coverage back to the pool:
    - `InsurancePolicy` calls `InsurancePool.releaseCoverage(id)`.
    - Policy status becomes `Expired`.
 
 ## Notes for Future XRPL Verification Step
-- XRPL proof can be added after `acceptPolicy` and before premium transfer.
-- Current flow already avoids premium transfer if acceptance is too late.
+- XRPL proof can be added before `createPolicy` to validate the external payment.
+- Current flow transfers premium during policy creation.
 - Suggested extension:
-  - `acceptPolicy` locks coverage
   - `verifyXRPLPayment` validates XRPL tx
-  - `collectPremium` transfers FXRP premium to pool
+  - `createPolicy` transfers FXRP premium to pool
 
 ## Testing Note (FDC Down)
 `InsurancePolicy` supports an optional custom FDC verifier address in the constructor. If provided, it will be used instead of the on-chain FDC registry. This allows mocking `verifyWeb2Json` during tests without altering production logic.

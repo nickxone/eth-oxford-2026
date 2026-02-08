@@ -1,21 +1,17 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
-
 const fxrp = (value: string) => ethers.parseUnits(value, 6);
 
 const abiCoder = ethers.AbiCoder.defaultAbiCoder();
 
 function makeProof(dto: {
     flightRef: string;
-    scheduledDepartureTs: bigint;
-    actualDepartureTs: bigint;
     delayMins: bigint;
     status: string;
 }) {
     const encoded = abiCoder.encode(
         [
-            "tuple(string flightRef,uint256 scheduledDepartureTs,uint256 actualDepartureTs,uint256 delayMins,string status)",
+            "tuple(string flightRef,uint256 delayMins,string status)",
         ],
         [dto]
     );
@@ -71,24 +67,19 @@ describe("InsurancePolicy + InsurancePool", function () {
         return { owner, lp, holder, token, pool, policy, verifier };
     }
 
-    it("accepts policy, transfers premium, and locks coverage", async function () {
+    it("creates policy, transfers premium, and locks coverage", async function () {
         const { lp, holder, token, pool, policy } = await deployAll();
 
         await token.connect(lp).approve(await pool.getAddress(), fxrp("1000"));
         await pool.connect(lp).deposit(fxrp("1000"));
 
-        const now = BigInt(await time.latest());
-        const startTs = now + 600n;
-        const endTs = startTs + 3600n;
         const premium = fxrp("10");
         const coverage = fxrp("200");
 
+        await token.connect(holder).transfer(await policy.getAddress(), premium);
         await policy
             .connect(holder)
-            .createPolicy("AA1234-2026-02-10", startTs, endTs, 60, premium, coverage);
-
-        await token.connect(holder).approve(await policy.getAddress(), premium);
-        await policy.acceptPolicy(0);
+            .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
 
         expect(await pool.lockedCoverage(0)).to.equal(coverage);
         expect(await token.balanceOf(await pool.getAddress())).to.equal(fxrp("1010"));
@@ -100,27 +91,17 @@ describe("InsurancePolicy + InsurancePool", function () {
         await token.connect(lp).approve(await pool.getAddress(), fxrp("1000"));
         await pool.connect(lp).deposit(fxrp("1000"));
 
-        const now = BigInt(await time.latest());
-        const startTs = now + 10n;
-        const endTs = startTs + 3600n;
         const premium = fxrp("10");
         const coverage = fxrp("200");
 
+        await token.connect(holder).transfer(await policy.getAddress(), premium);
         await policy
             .connect(holder)
-            .createPolicy("AA1234-2026-02-10", startTs, endTs, 60, premium, coverage);
+            .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
 
-        await token.connect(holder).approve(await policy.getAddress(), premium);
-        await policy.acceptPolicy(0);
-
-        await time.increaseTo(Number(startTs + 1n));
-
-        const scheduled = startTs + 60n;
         const delayMins = 90n;
         const proof = makeProof({
             flightRef: "AA1234-2026-02-10",
-            scheduledDepartureTs: scheduled,
-            actualDepartureTs: scheduled + delayMins * 60n,
             delayMins,
             status: "DELAYED",
         });
@@ -133,27 +114,26 @@ describe("InsurancePolicy + InsurancePool", function () {
         expect(await pool.lockedCoverage(0)).to.equal(0);
     });
 
-    it("expires policy and releases coverage", async function () {
+    it("expires policy and releases coverage when not delayed", async function () {
         const { lp, holder, token, pool, policy } = await deployAll();
 
         await token.connect(lp).approve(await pool.getAddress(), fxrp("1000"));
         await pool.connect(lp).deposit(fxrp("1000"));
 
-        const now = BigInt(await time.latest());
-        const startTs = now + 10n;
-        const endTs = startTs + 60n;
         const premium = fxrp("10");
         const coverage = fxrp("200");
 
+        await token.connect(holder).transfer(await policy.getAddress(), premium);
         await policy
             .connect(holder)
-            .createPolicy("AA1234-2026-02-10", startTs, endTs, 60, premium, coverage);
+            .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
 
-        await token.connect(holder).approve(await policy.getAddress(), premium);
-        await policy.acceptPolicy(0);
-
-        await time.increaseTo(Number(endTs + 1n));
-        await policy.expirePolicy(0);
+        const proof = makeProof({
+            flightRef: "AA1234-2026-02-10",
+            delayMins: 0n,
+            status: "ON_TIME",
+        });
+        await policy.resolvePolicy(0, proof);
 
         expect(await pool.lockedCoverage(0)).to.equal(0);
         expect(await pool.availableLiquidity()).to.equal(await token.balanceOf(await pool.getAddress()));
