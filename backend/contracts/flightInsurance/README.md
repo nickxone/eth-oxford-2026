@@ -7,7 +7,7 @@ This folder contains the FXRP‑based flight‑delay insurance contracts for the
 ### `InsurancePolicy`
 - **Role:** Policy registry and claim resolver.
 - **What it stores:**
-  - Policyholder, flight reference, premium, and coverage.
+  - Policyholder, flight reference, travel date, predicted arrival time, premium, and coverage.
 - **Key flows:**
   - `createPolicy(...)` registers a new policy, transfers the deposited FXRP premium to the pool, and locks coverage.
   - `resolvePolicy(id, proof)` verifies an FDC Web2Json proof and pays out coverage if the flight is delayed.

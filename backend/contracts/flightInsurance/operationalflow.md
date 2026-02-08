@@ -21,6 +21,8 @@ This document describes how `InsurancePolicy` and `InsurancePool` interact for t
 1. Policyholder transfers FXRP premium to `InsurancePolicy`.
 2. Policyholder calls `InsurancePolicy.createPolicy(...)` with:
    - `flightRef`
+   - `travelDate`
+   - `predictedArrivalTime`
    - `premium` / `coverage`
    - `depositedAmount` (must match `premium`)
 3. Policy is stored with status `Active`, the premium is forwarded to the pool, and coverage is locked.

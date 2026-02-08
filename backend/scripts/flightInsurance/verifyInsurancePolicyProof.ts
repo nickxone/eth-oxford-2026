@@ -50,7 +50,7 @@ async function main() {
     console.log("soosososo");
     await (await token.transfer(policyAddr, premium, {gasLimit: 10000000})).wait();
     console.log("siisisiisisi");
-    await (await policy.createPolicy("BF1234", premium, coverage, premium, {gasLimit: 10000000})).wait();
+    await (await policy.createPolicy("BF1234", "2026-02-10", "18:30", premium, coverage, premium, {gasLimit: 10000000})).wait();
     console.log("sasasasaasa");
 
     const IWeb2JsonVerification = await artifacts.require("IWeb2JsonVerification");

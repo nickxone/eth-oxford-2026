@@ -79,7 +79,7 @@ describe("InsurancePolicy + InsurancePool", function () {
         await token.connect(holder).transfer(await policy.getAddress(), premium);
         await policy
             .connect(holder)
-            .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
+            .createPolicy("AA1234", "2026-02-10", "18:30", premium, coverage, premium);
 
         expect(await pool.lockedCoverage(0)).to.equal(coverage);
         expect(await token.balanceOf(await pool.getAddress())).to.equal(fxrp("1010"));
@@ -97,11 +97,11 @@ describe("InsurancePolicy + InsurancePool", function () {
         await token.connect(holder).transfer(await policy.getAddress(), premium);
         await policy
             .connect(holder)
-            .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
+            .createPolicy("AA1234", "2026-02-10", "18:30", premium, coverage, premium);
 
         const delayMinutes = 90n;
         const proof = makeProof({
-            flight: "AA1234-2026-02-10",
+            flight: "AA1234",
             delayMinutes,
             status: "DELAYED",
         });
@@ -126,10 +126,10 @@ describe("InsurancePolicy + InsurancePool", function () {
         await token.connect(holder).transfer(await policy.getAddress(), premium);
         await policy
             .connect(holder)
-            .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
+            .createPolicy("AA1234", "2026-02-10", "18:30", premium, coverage, premium);
 
         const proof = makeProof({
-            flight: "AA1234-2026-02-10",
+            flight: "AA1234",
             status: "ON_TIME",
             delayMinutes: 0n,
         });

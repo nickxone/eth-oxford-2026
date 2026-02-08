@@ -34,6 +34,8 @@ contract InsurancePolicy {
     struct Policy {
         address holder;
         string flightRef;
+        string travelDate;
+        string predictedArrivalTime;
         uint256 premium;
         uint256 coverage;
         PolicyStatus status;
@@ -64,6 +66,8 @@ contract InsurancePolicy {
 
     function createPolicy(
         string memory flightRef,
+        string memory travelDate,
+        string memory predictedArrivalTime,
         uint256 premium,
         uint256 coverage,
         uint256 depositedAmount
@@ -80,6 +84,8 @@ contract InsurancePolicy {
         Policy memory newPolicy = Policy({
             holder: msg.sender,
             flightRef: flightRef,
+            travelDate: travelDate,
+            predictedArrivalTime: predictedArrivalTime,
             premium: premium,
             coverage: coverage,
             status: PolicyStatus.Active,

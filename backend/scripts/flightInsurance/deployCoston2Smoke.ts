@@ -36,18 +36,20 @@ async function main() {
     if (balance < depositAmount + premium) {
         throw new Error(`Insufficient FXRP balance: ${balance.toString()}`);
     }
-    await (await token.approve(poolAddr, depositAmount)).wait();
-    await (await pool.deposit(depositAmount)).wait();
+    await (await token.approve(poolAddr, depositAmount, )).wait();
+    await (await pool.deposit(depositAmount, {gasLimit: 10000000})).wait();
     console.log("Deposited liquidity:", depositAmount.toString());
 
     // Create a sample policy
 
-    await (await token.transfer(policyAddr, premium)).wait();
+    await (await token.transfer(policyAddr, premium, {gasLimit: 10000000})).wait();
     const createTx = await policy.createPolicy(
-        "AA1234-2026-02-10",
+        "AA1234",
+        "2026-02-10",
+        "18:30",
         premium,
         coverage,
-        premium
+        premium, {gasLimit: 10000000}
     );
     await createTx.wait();
     console.log("Policy created");
