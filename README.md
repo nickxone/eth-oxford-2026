@@ -23,7 +23,7 @@ Verify: The user clicks "Activate," and the InsurancePolicy contract is notif
 Monitor: The dApp tracks the flight. If a delay occurs, the user (or a bot) provides the FDC proof.
 Payout: The Flare contract verifies the proof, and issues the refund
 
-## Backend Instructions
+## Dev Instructions
 
 `cd` into the `backend` folder, then run the following command:
 
@@ -39,19 +39,9 @@ To compile smart contracts run:
 npx hardhat compile
 ```
 
-Make sure that your account has sufficient funds, then run the following to deploy a contract:
+Deploy the Smart Contracts using corresponding scripts.
 
-```
-npx hardhat run scripts/tryDeployment.ts --network coston2
-```
-
-To verify the API using FDC, run:
-
-```
-npx hardhat run scripts/VerifyFlightStatus.ts --network coston2
-```
-
-## Mock API Instructions
+### Mock Flights API Instructions
 
 `cd` into `mock-api` folder, go through the following steps
 
@@ -86,7 +76,7 @@ cd backend/engine
 npx tsx --env-file=.env src/bridge-server.ts
 ```
 
-### Test the server:
+#### Test the server:
 
 ```
 curl -X POST http://localhost:4000/api/bridge -H "Content-Type: application/json" -d '{"xrplSeed":"sEdSmNfuDCSvseYo734a279W31tJQLP","recipientAddress":"0x0e0d3685463395dF3BCa251B6941084B3F3C264a","lots":1}'
