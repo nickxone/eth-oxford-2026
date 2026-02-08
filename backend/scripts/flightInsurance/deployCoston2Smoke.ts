@@ -44,6 +44,7 @@ async function main() {
 
     await (await token.transfer(policyAddr, premium, {gasLimit: 10000000})).wait();
     const createTx = await policy.createPolicy(
+        deployer.address,
         "AA1234",
         "2026-02-10",
         "18:30",
