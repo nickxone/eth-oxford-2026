@@ -64,7 +64,7 @@ async function main() {
         if (amount <= available) {
             try {
                 await pool.withdraw.staticCall(withdrawShares);
-                await (await pool.withdraw(withdrawShares/*, {gasLimit: 10000000}*/)).wait();
+                await (await pool.withdraw(withdrawShares, {gasLimit: 10000000})).wait();
                 console.log("Withdrew shares:", withdrawShares.toString());
             } catch (err) {
                 console.log("Skip withdraw: withdrawal reverted", err);

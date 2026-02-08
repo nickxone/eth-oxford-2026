@@ -5,13 +5,13 @@ const fxrp = (value: string) => ethers.parseUnits(value, 6);
 const abiCoder = ethers.AbiCoder.defaultAbiCoder();
 
 function makeProof(dto: {
-    flightRef: string;
-    delayMins: bigint;
+    flight: string;
     status: string;
+    delayMinutes: bigint;
 }) {
     const encoded = abiCoder.encode(
         [
-            "tuple(string flightRef,uint256 delayMins,string status)",
+            "tuple(string flight,string status,uint256 delayMinutes)",
         ],
         [dto]
     );
@@ -99,10 +99,10 @@ describe("InsurancePolicy + InsurancePool", function () {
             .connect(holder)
             .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
 
-        const delayMins = 90n;
+        const delayMinutes = 90n;
         const proof = makeProof({
-            flightRef: "AA1234-2026-02-10",
-            delayMins,
+            flight: "AA1234-2026-02-10",
+            delayMinutes,
             status: "DELAYED",
         });
 
@@ -129,9 +129,9 @@ describe("InsurancePolicy + InsurancePool", function () {
             .createPolicy("AA1234-2026-02-10", premium, coverage, premium);
 
         const proof = makeProof({
-            flightRef: "AA1234-2026-02-10",
-            delayMins: 0n,
+            flight: "AA1234-2026-02-10",
             status: "ON_TIME",
+            delayMinutes: 0n,
         });
         await policy.resolvePolicy(0, proof);
 

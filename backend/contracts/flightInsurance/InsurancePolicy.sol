@@ -17,9 +17,9 @@ interface IInsurancePool {
 }
 
 struct FlightDelayDTO {
-    string flightRef;
-    uint256 delayMins;
+    string flight;
     string status;
+    uint256 delayMinutes;
 }
 
 contract InsurancePolicy {
@@ -98,8 +98,8 @@ contract InsurancePolicy {
         FlightDelayDTO memory dto = abi.decode(proof.data.responseBody.abiEncodedData, (FlightDelayDTO));
 
         require(
-            keccak256(bytes(dto.flightRef)) == keccak256(bytes(policy.flightRef)),
-            string.concat("Flight ref mismatch: ", dto.flightRef)
+            keccak256(bytes(dto.flight)) == keccak256(bytes(policy.flightRef)),
+            string.concat("Flight ref mismatch: ", dto.flight)
         );
 
         if (_isDelayed(dto)) {
@@ -151,7 +151,7 @@ contract InsurancePolicy {
     function abiSignatureHack(FlightDelayDTO memory dto) public pure {}
 
     function _isDelayed(FlightDelayDTO memory dto) private pure returns (bool) {
-        if (dto.delayMins > 0) {
+        if (dto.delayMinutes > 0) {
             return true;
         }
         return keccak256(bytes(dto.status)) == keccak256(bytes("DELAYED"));
