@@ -9,11 +9,13 @@ import { logEvents } from "../../scripts/utils/core";
 
 const LOTS_TO_REDEEM = 1;
 // XRP address to send the redeemed lots to
-const UNDERLYING_ADDRESS = "rSHYuiEvsYsKR8uUHhBTuGP5zjRcGt4nm";
+const UNDERLYING_ADDRESS = "r95Yi2uND3gyun4yXomw2hpqWeJBi8LAiM";
 
 // Get the contract
 const FAssetsRedeem = artifacts.require("FAssetsRedeem");
-const AssetManager = artifacts.require("IAssetManager");
+const AssetManager = artifacts.require(
+    "@flarenetwork/flare-periphery-contracts/coston2/IAssetManager.sol:IAssetManager"
+);
 
 const IERC20 = artifacts.require("IERC20");
 
@@ -88,7 +90,7 @@ async function main() {
     console.log("Redeem transaction receipt", redeemTx);
 
     // Parse events from the transaction
-    const redemptionRequestedEvents = parseRedemptionEvents(redeemTx.receipt, fAssetsRedeem);
+    const redemptionRequestedEvents = await parseRedemptionEvents(redeemTx.receipt, fAssetsRedeem);
 
     // Print redemption request info for each redemption requested event
     await printRedemptionRequestInfo(fAssetsRedeem, redemptionRequestedEvents);

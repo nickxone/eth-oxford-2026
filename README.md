@@ -63,3 +63,18 @@ npx hardhat run scripts/deployPool.ts --network coston2
 
 npx hardhat run scripts/BridgeAndBet.ts --network coston2
 ```
+
+# Custom
+
+### Run the server:
+
+```
+cd backend/engine
+npx tsx --env-file=.env src/bridge-server.ts
+```
+
+### Test the server:
+
+```
+curl -X POST http://localhost:4000/api/bridge -H "Content-Type: application/json" -d '{"xrplSeed":"sEdSmNfuDCSvseYo734a279W31tJQLP","recipientAddress":"0x098bCc8b14774620A8803016B74a964dD57E263D","lots":1}'
+```
