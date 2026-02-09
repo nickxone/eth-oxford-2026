@@ -1,6 +1,6 @@
 # Project Overview
 
-FlareSure is a decentralized insurance dApp built on the Flare Network that solves the transparency and delay issues in traditional travel insurance. By leveraging the Flare Data Connector (FDC), we provide proof for the data originating from our externally hosted flight status API. Users purchase policies on Flare using fXRP, and as soon as a flight delay is verified by the Flare Oracle, the smart contract triggers an automated redemption process that sends native XRP back to the user’s wallet.
+FlyP2P is a decentralized insurance dApp built on the Flare Network that solves the transparency and delay issues in traditional travel insurance. By leveraging the Flare Data Connector (FDC), we provide proof for the data originating from our externally hosted flight status API. Users purchase policies on Flare using fXRP, and as soon as a flight delay is verified by the Flare Oracle, the smart contract triggers an automated redemption process that sends native XRP back to the user’s wallet.
 
 ### Flare-Specific Integrations & Technical Stack
 
