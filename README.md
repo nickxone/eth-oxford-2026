@@ -1,8 +1,16 @@
+# Winner – ETH Oxford (Flare main track, $5000)
+---
+
 # Project Overview
 
 FlyP2P is a decentralized insurance dApp built on the Flare Network that solves the transparency and delay issues in traditional travel insurance. By leveraging the Flare Data Connector (FDC), we provide proof for the data originating from our externally hosted flight status API. Users purchase policies on Flare using fXRP, and as soon as a flight delay is verified by the Flare Oracle, the smart contract triggers an automated redemption process that sends native XRP back to the user’s wallet.
 
 ### Flare-Specific Integrations & Technical Stack
+
+![Flare](https://img.shields.io/badge/Flare-E1147B?style=for-the-badge&logo=generic&logoColor=white)
+![Solidity](https://img.shields.io/badge/Solidity-e6e6e6?style=for-the-badge&logo=solidity&logoColor=black)
+![Next JS](https://img.shields.io/badge/next%20js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
 
 1. Flare Data Connector (FDC) — Web2Json Attestation
    We use the FDC Web2Json type to trustlessly fetch real-world flight data from airport APIs.
@@ -22,18 +30,6 @@ Quote & Bridge: The user enters their flight details and XRP secret. XRP is bri
 Verify: The user clicks "Activate," and the InsurancePolicy contract is notified of the locked liquidity.
 Monitor: The dApp tracks the flight. If a delay occurs, the user (or a bot) provides the FDC proof.
 Payout: The Flare contract verifies the proof, and issues the refund
-
-
-## Flight Insurance Security Measures
-
-These are the main safety controls in the `InsurancePool` and `InsurancePolicy` contracts:
-
-- Access control: only the pool `owner` can update ownership and set the policy contract; only the policy contract can lock/release coverage or execute payouts.
-- Liquidity protection: withdrawals are blocked if they would breach locked coverage; available liquidity is enforced at withdraw time.
-- Coverage accounting: each policy locks coverage once; release/payout clears the lock and updates totals to prevent double‑spend of coverage.
-- Proof verification: policy resolution uses FDC Web2Json verification (or a configured custom verifier) before deciding payout vs expiry.
-- Flight reference binding: the proof’s flight reference must match the policy’s recorded flight ref to prevent cross‑claiming.
-- Sanity checks: non‑zero addresses and amounts are required for critical operations (pool token, owner, policy contract, payout recipient).
 
 ## Dev Instructions
 
